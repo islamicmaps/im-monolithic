@@ -1,0 +1,58 @@
+{
+  "id": "hijra",
+  "type": "story",
+  "title": { "en": "The Hijra: Mecca to Medina", "ar": "الهجرة: من مكة إلى المدينة" },
+  "subtitle": { "en": "The migration that began the Islamic calendar", "ar": "الهجرة التي بدأ بها التقويم الهجري" },
+  "description": { "en": "Follow the Prophet's ﷺ migration in 622 CE along its indirect route, evading the Quraysh, from Mecca to the city that would become Medina." },
+  "category": "historical",
+  "themes": ["seerah"],
+  "cover": "asset:hijra-cover",
+  "bbox": [38.5, 21.0, 40.2, 24.8],
+  "default_view": { "center": [39.3, 22.9], "zoom": 6, "pitch": 45, "bearing": 0, "duration_ms": 2000 },
+  "languages": ["en", "ar"],
+  "features": ["feature:hijra-route"],
+  "events": ["event:hijra"],
+  "playback": {
+    "mode": "temporal",
+    "timeline": {
+      "min": { "sort_key": 622.66, "display": { "en": "Departure" } },
+      "max": { "sort_key": 622.71, "display": { "en": "Arrival" } },
+      "speeds": [1, 2, 5]
+    },
+    "steps": [
+      {
+        "id": "depart",
+        "at_time": { "sort_key": 622.66, "display": { "en": "Night of departure" } },
+        "title": { "en": "Departure from Mecca", "ar": "الخروج من مكة" },
+        "narration": { "en": "Under cover of night, the Prophet ﷺ and Abu Bakr leave Mecca." },
+        "camera": { "center": [39.8262, 21.4225], "zoom": 9, "pitch": 50, "duration_ms": 2500 },
+        "show": ["feature:hijra-route"],
+        "animate": [ { "feature": "feature:hijra-route", "kind": "trip", "t_start": 0, "t_end": 1 } ],
+        "duration_ms": 12000
+      },
+      {
+        "id": "arrive",
+        "at_time": { "sort_key": 622.71, "display": { "en": "Arrival at Quba" } },
+        "title": { "en": "Arrival at Medina", "ar": "الوصول إلى المدينة" },
+        "narration": { "en": "After an indirect journey, they reach Yathrib — henceforth Medina." },
+        "camera": { "center": [39.6142, 24.4672], "zoom": 11, "pitch": 45, "duration_ms": 2500 },
+        "duration_ms": 6000
+      }
+    ]
+  },
+  "scrolly": {
+    "enabled": true,
+    "sections": [
+      { "step": "depart", "text": { "en": "The Quraysh plotted against the Prophet ﷺ; he departed Mecca by night with Abu Bakr." } },
+      { "step": "arrive", "text": { "en": "The people of Yathrib welcomed him, and the city became Medina, the first Islamic polity." } }
+    ]
+  },
+  "info": [
+    { "kind": "heading", "title": { "en": "Why it matters" } },
+    { "kind": "text", "body": { "en": "Year 1 of the Hijri calendar is dated from this migration." } },
+    { "kind": "citation", "source": "source:sealed-nectar" }
+  ],
+  "sources": ["source:sealed-nectar"],
+  "review": { "stage": "ai-generated", "certainty": "established", "updated": "2026-06-08" },
+  "updated": "2026-06-08"
+}

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://islamicmaps.org/schema/asset.schema.json",
+  "title": "Asset",
+  "description": "A media asset: 3D model, image, audio, video or icon. Authored as METADATA only; the binaries live on S3 + CloudFront. 3D models carry multiple LOD variants so the client adapts 2D<->3D to bandwidth and device.",
+  "type": "object",
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/Id" },
+    "type": { "const": "asset" },
+    "media": { "enum": ["model3d", "image", "audio", "video", "icon"] },
+    "title": { "$ref": "common.schema.json#/$defs/LocalizedString" },
+    "alt_text": { "$ref": "common.schema.json#/$defs/LocalizedString", "description": "Accessibility text (image/icon)." },
+    "model3d": {
+      "type": "object",
+      "description": "Present when media=model3d. Provide several quality variants; the client picks one by connection speed + device capability.",
+      "properties": {
+        "variants": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "quality": { "enum": ["low", "medium", "high"] },
+              "url": { "type": "string", "description": "GLB on CDN." },
+              "format": { "enum": ["glb", "gltf"], "default": "glb" },
+              "draco": { "type": "boolean", "description": "Draco mesh compression applied." },
+              "ktx2": { "type": "boolean", "description": "KTX2/Basis texture compression applied." },
+              "byte_size": { "type": "integer" },
+              "poly_count": { "type": "integer" }
+            },
+            "required": ["quality", "url"]
+          }
+        },
+        "anchor": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 3, "description": "[lng, lat, alt] placement on the map." },
+        "scale": { "type": "number", "default": 1 },
+        "rotation": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3, "description": "[x,y,z] degrees." },
+        "fallback_2d": { "$ref": "common.schema.json#/$defs/Ref", "description": "Asset (icon/image) or feature shown when 3D is disabled / bandwidth too low. Guarantees the app never gets stuck with a missing model." }
+      },
+      "required": ["variants"]
+    },
+    "src": { "type": "string", "description": "Primary URL for image/audio/video/icon." },
+    "formats": {
+      "type": "array",
+      "description": "Alternative encodings for adaptive delivery (e.g. avif/webp, opus/mp3, webm/mp4).",
+      "items": {
+        "type": "object",
+        "properties": { "url": { "type": "string" }, "mime": { "type": "string" }, "byte_size": { "type": "integer" } },
+        "required": ["url", "mime"]
+      }
+    },
+    "duration_ms": { "type": "integer", "description": "For audio/video." },
+    "captions": {
+      "type": "array",
+      "description": "Subtitle/caption tracks per language (audio/video) — supports i18n + accessibility.",
+      "items": { "type": "object", "properties": { "lang": { "$ref": "common.schema.json#/$defs/LangCode" }, "url": { "type": "string" } }, "required": ["lang", "url"] }
+    },
+    "license": { "type": "string", "description": "SPDX-style id or short license name." },
+    "attribution": { "$ref": "common.schema.json#/$defs/LocalizedString" },
+    "sources": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/Ref" } },
+    "ext": { "type": "object" }
+  },
+  "required": ["id", "type", "media"],
+  "additionalProperties": false
+}

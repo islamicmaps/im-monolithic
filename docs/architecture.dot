@@ -1,0 +1,102 @@
+// islamicmaps.org — AWS architecture
+// Render:  dot -Tpng architecture.dot -o architecture.png
+//          dot -Tsvg architecture.dot -o architecture.svg
+digraph islamicmaps {
+  graph [rankdir=TB, compound=true, splines=polyline, nodesep=0.45, ranksep=0.85,
+         fontname="Helvetica", bgcolor="white", pad=0.4, label=<
+         <FONT POINT-SIZE="20"><B>islamicmaps.org &#8212; AWS architecture</B></FONT><BR/>
+         <FONT POINT-SIZE="11">static-first &#183; serverless &#183; platform-agnostic &#183; built for low/no bandwidth</FONT>>,
+         labelloc="t"];
+  node  [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11, margin="0.18,0.10", penwidth=1.2];
+  edge  [fontname="Helvetica", fontsize=9, color="#555555", penwidth=1.2];
+
+  // ---------------- Clients ----------------
+  subgraph cluster_clients {
+    label=<<B>Clients</B>>; style="rounded,filled"; color="#90caf9"; fillcolor="#e3f2fd"; fontsize=12;
+    web    [fillcolor="#bbdefb", label=<<B>Web app (PWA)</B><BR/><FONT POINT-SIZE="10">React &#183; MapLibre GL + deck.gl<BR/>installable &#183; offline cache</FONT>>];
+    native [fillcolor="#e1f0fb", style="rounded,filled,dashed", label=<<B>Native iOS / Android</B><BR/><FONT POINT-SIZE="10">future &#183; SAME REST/JSON API<BR/>(zero backend change)</FONT>>];
+  }
+
+  // ---------------- Edge / DNS ----------------
+  subgraph cluster_edge {
+    label=<<B>Edge / DNS</B>>; style="rounded,filled"; color="#ffcc80"; fillcolor="#fff3e0"; fontsize=12;
+    dns [fillcolor="#ffe0b2", label=<<B>Route 53</B><BR/><FONT POINT-SIZE="10">islamicmaps.org</FONT>>];
+    cf  [fillcolor="#ffcc80", label=<<B>CloudFront CDN</B><BR/><FONT POINT-SIZE="10">TLS &#183; brotli &#183; edge cache<BR/>path-based routing</FONT>>];
+    waf [fillcolor="#ffe0b2", label=<<B>AWS WAF</B><BR/><FONT POINT-SIZE="10">API protection</FONT>>];
+  }
+
+  // ---------------- Static origin (the bulk: read-only) ----------------
+  subgraph cluster_static {
+    label=<<B>Static origin &#8212; S3  (read-only, the hot path)</B>>; style="rounded,filled"; color="#a5d6a7"; fillcolor="#e8f5e9"; fontsize=12;
+    s3app     [fillcolor="#c8e6c9", label=<<B>App bundle</B><BR/><FONT POINT-SIZE="10">JS / CSS / PWA shell</FONT>>];
+    s3content [fillcolor="#c8e6c9", label=<<B>Content</B><BR/><FONT POINT-SIZE="10">brotli JSON: catalog + stories</FONT>>];
+    s3tiles   [fillcolor="#c8e6c9", label=<<B>Basemap tiles</B><BR/><FONT POINT-SIZE="10">PMTiles vector + holy-site raster</FONT>>];
+    s3models  [fillcolor="#c8e6c9", label=<<B>3D + media</B><BR/><FONT POINT-SIZE="10">GLB (Draco/KTX2) LODs &#183; img/audio/video</FONT>>];
+    s3index   [fillcolor="#c8e6c9", label=<<B>Search index</B><BR/><FONT POINT-SIZE="10">prebuilt client index (Orama)<BR/>offline metadata search</FONT>>];
+  }
+
+  // ---------------- Serverless API (only when needed) ----------------
+  subgraph cluster_api {
+    label=<<B>Serverless API &#8212; online-only (deep search, future features)</B>>; style="rounded,filled"; color="#ce93d8"; fillcolor="#f3e5f5"; fontsize=12;
+    apigw   [fillcolor="#e1bee7", label=<<B>API Gateway</B><BR/><FONT POINT-SIZE="10">REST /v1 &#183; versioned<BR/>platform-agnostic</FONT>>];
+    lambda  [fillcolor="#e1bee7", label=<<B>Lambda</B><BR/><FONT POINT-SIZE="10">deep/semantic search<BR/>+ future endpoints</FONT>>];
+    oss     [fillcolor="#e1bee7", label=<<B>OpenSearch Serverless</B><BR/><FONT POINT-SIZE="10">full-text + vector (semantic)</FONT>>];
+    ddb     [fillcolor="#f5eaf8", style="rounded,filled,dashed", label=<<B>DynamoDB</B><BR/><FONT POINT-SIZE="10">bookmarks / contributions (future)</FONT>>];
+    cognito [fillcolor="#f5eaf8", style="rounded,filled,dashed", label=<<B>Cognito</B><BR/><FONT POINT-SIZE="10">auth for contributors (future)</FONT>>];
+  }
+
+  // ---------------- Content build pipeline (CI, offline) ----------------
+  subgraph cluster_build {
+    label=<<B>Content build pipeline (CI, offline)</B>>; style="rounded,filled"; color="#b0bec5"; fillcolor="#eceff1"; fontsize=12;
+    gh      [fillcolor="#cfd8dc", label=<<B>GitHub repo</B><BR/><FONT POINT-SIZE="10">AI-authored JSON + JSON Schema<BR/>scholar review (PRs)</FONT>>];
+    ci      [fillcolor="#cfd8dc", label=<<B>CodeBuild / GH Actions</B><BR/><FONT POINT-SIZE="10">validate &#8594; compile &#8594; publish</FONT>>];
+    tools   [fillcolor="#cfd8dc", label=<<B>Compilers</B><BR/><FONT POINT-SIZE="10">tippecanoe (PMTiles)<BR/>gltf-transform &#183; search-index build</FONT>>];
+    bedrock [fillcolor="#cfd8dc", label=<<B>Bedrock</B><BR/><FONT POINT-SIZE="10">embeddings (build-time)</FONT>>];
+  }
+
+  // ---------------- Monitoring ----------------
+  cw [fillcolor="#eceff1", color="#b0bec5", label=<<B>CloudWatch</B><BR/><FONT POINT-SIZE="10">logs &#183; metrics</FONT>>];
+
+  // ================= Edges =================
+  // clients -> edge
+  web    -> dns [label="HTTPS"];
+  native -> dns [style=dashed, label="HTTPS"];
+  dns    -> cf;
+
+  // STATIC hot path (green, bold): cached, no server
+  cf -> s3app [lhead=cluster_static, color="#2e7d32", penwidth=2.4,
+               label=<<FONT COLOR="#2e7d32"><B>static &#183; cached &#183; no server</B></FONT>>];
+
+  // DYNAMIC path (purple): online-only
+  cf  -> waf   [color="#7b1fa2", penwidth=1.8, label=<<FONT COLOR="#7b1fa2">/v1/* </FONT>>];
+  waf -> apigw [color="#7b1fa2", penwidth=1.8];
+  apigw -> lambda [color="#7b1fa2", penwidth=1.8];
+  lambda -> oss  [color="#7b1fa2", penwidth=1.8, label="query"];
+  lambda -> ddb  [style=dashed, color="#9e9e9e"];
+  apigw  -> cognito [style=dashed, color="#9e9e9e", label="authorizer"];
+
+  // BUILD pipeline (gray dashed): publishes static + indexes
+  gh -> ci;
+  ci -> tools [dir=both];
+  ci -> bedrock [label="vectors"];
+  ci -> s3content [lhead=cluster_static, style=dashed, color="#607d8b", penwidth=1.8,
+                   label=<<FONT COLOR="#607d8b"><B>publish artifacts</B></FONT>>];
+  ci -> oss [style=dashed, color="#607d8b", penwidth=1.6, label="index docs + vectors"];
+
+  // monitoring
+  lambda -> cw [style=dotted, color="#9e9e9e", arrowhead=none];
+  apigw  -> cw [style=dotted, color="#9e9e9e", arrowhead=none];
+
+  // ---------------- Legend ----------------
+  subgraph cluster_legend {
+    label=<<B>Legend</B>>; style="rounded"; color="#bdbdbd"; fontsize=11;
+    node [shape=plaintext, style="", fillcolor="white"];
+    legend [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="2" CELLPADDING="3">
+        <TR><TD><FONT COLOR="#2e7d32"><B>&#8212;&#8212;</B></FONT></TD><TD ALIGN="LEFT">static, CDN-cached, works offline / low-bandwidth (no server)</TD></TR>
+        <TR><TD><FONT COLOR="#7b1fa2"><B>&#8212;&#8212;</B></FONT></TD><TD ALIGN="LEFT">serverless, online-only (deep / semantic search)</TD></TR>
+        <TR><TD><FONT COLOR="#607d8b"><B>- - -</B></FONT></TD><TD ALIGN="LEFT">build pipeline (publishes artifacts &amp; search index)</TD></TR>
+        <TR><TD><FONT COLOR="#9e9e9e"><B>- - -</B></FONT></TD><TD ALIGN="LEFT">future / optional (no always-on servers anywhere)</TD></TR>
+      </TABLE>>];
+  }
+}

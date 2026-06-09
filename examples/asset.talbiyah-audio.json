@@ -1,0 +1,14 @@
+{
+  "id": "talbiyah-audio",
+  "type": "asset",
+  "media": "audio",
+  "title": { "en": "Talbiyah recitation", "ar": "تلبية" },
+  "alt_text": { "en": "Recitation of the Talbiyah, recited as a pilgrim enters the state of ihram." },
+  "duration_ms": 0,
+  "license": "TBD",
+  "attribution": { "en": "Placeholder asset doc — production recording is on the editorial backlog. Schema-valid so validators don't flag the reference; client UI hides the audio button when src is absent." },
+  "ext": {
+    "status": "placeholder",
+    "needs": ["public-domain or CC-BY recording", "captions per-language"]
+  }
+}

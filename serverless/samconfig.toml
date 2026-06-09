@@ -1,0 +1,17 @@
+version = 0.1
+
+[default.global.parameters]
+stack_name = "islamicmaps-search"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+stack_name = "islamicmaps-search"
+resolve_s3 = true
+capabilities = "CAPABILITY_IAM"
+region = "us-east-1"
+confirm_changeset = true
+# Override at deploy time, e.g.:
+# parameter_overrides = "AllowedOrigin=https://islamicmaps.org EmbedModel=amazon.titan-embed-text-v2:0 EmbedDim=1024 IndexBucketName=islamicmaps-search-index"

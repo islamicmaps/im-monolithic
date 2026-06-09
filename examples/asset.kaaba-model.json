@@ -1,0 +1,21 @@
+{
+  "id": "kaaba-3d",
+  "type": "asset",
+  "media": "model3d",
+  "title": { "en": "The Kaaba", "ar": "الكعبة المشرفة" },
+  "alt_text": { "en": "3D model of the Kaaba in the Masjid al-Haram" },
+  "model3d": {
+    "variants": [
+      { "quality": "low", "url": "https://cdn.islamicmaps.org/models/kaaba/low.glb", "format": "glb", "draco": true, "ktx2": true, "byte_size": 180000, "poly_count": 4000 },
+      { "quality": "medium", "url": "https://cdn.islamicmaps.org/models/kaaba/med.glb", "format": "glb", "draco": true, "ktx2": true, "byte_size": 900000, "poly_count": 40000 },
+      { "quality": "high", "url": "https://cdn.islamicmaps.org/models/kaaba/high.glb", "format": "glb", "draco": true, "ktx2": true, "byte_size": 4200000, "poly_count": 250000 }
+    ],
+    "anchor": [39.8262, 21.4225, 0],
+    "scale": 1,
+    "rotation": [0, 0, 0],
+    "fallback_2d": "asset:kaaba-icon"
+  },
+  "license": "CC-BY-4.0",
+  "attribution": { "en": "islamicmaps.org" },
+  "sources": ["source:sealed-nectar"]
+}

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#0f5132" />
+    <title>islamicmaps.org</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./favicon.ico" sizes="32x32" />
+    <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png" />
+    <link rel="stylesheet" href="./vendor/maplibre-gl.css" />
+    <link rel="stylesheet" href="./css/style.css" />
+
+    <!-- Self-hosted vendor bundles (build-time, see .vendor-build/build.mjs).
+         Zero third-party runtime deps. -->
+    <script type="importmap">
+      {
+        "imports": {
+          "maplibre-gl": "./vendor/maplibre-gl.mjs",
+          "deck.gl": "./vendor/deck.gl.mjs",
+          "@deck.gl/mapbox": "./vendor/deck.gl.mjs",
+          "pmtiles": "./vendor/pmtiles.mjs"
+        }
+      }
+    </script>
+    <link rel="modulepreload" href="./vendor/maplibre-gl.mjs" />
+    <link rel="modulepreload" href="./vendor/deck.gl.mjs" />
+    <link rel="modulepreload" href="./vendor/pmtiles.mjs" />
+  </head>
+  <body>
+    <div id="map"></div>
+    <div id="app"></div>
+    <noscript>islamicmaps.org needs JavaScript enabled.</noscript>
+    <script type="module" src="./js/main.js"></script>
+  </body>
+</html>

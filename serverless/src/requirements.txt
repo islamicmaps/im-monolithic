@@ -1,0 +1,3 @@
+# Lambda runtime dependencies (installed by `sam build`).
+# boto3 is present in the Lambda runtime, but pin it for the indexer/local use.
+boto3>=1.34

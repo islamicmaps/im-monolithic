@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://islamicmaps.org/schema/place.schema.json",
+  "title": "Place",
+  "description": "A geographic anchor in the gazetteer. Usually ATEMPORAL — a place persists across history. Events and features REFERENCE places by id. Reuse external gazetteer IDs; do not reinvent place identity.",
+  "type": "object",
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/Id" },
+    "type": { "const": "place" },
+    "names": { "$ref": "common.schema.json#/$defs/LocalizedString", "description": "Primary localized name(s)." },
+    "alt_names": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Variant/historical/transliterated spellings for SEARCH, e.g. ['Madinah','Medina','Yathrib','المدينة']. Fed into the offline search index."
+    },
+    "kind": { "enum": ["city", "mosque", "mountain", "well", "cave", "battlefield", "region", "route_point", "building", "other"] },
+    "geometry": { "$ref": "common.schema.json#/$defs/GeoJSONGeometry", "description": "Usually a Point; Polygon for regions." },
+    "gazetteer_ids": {
+      "type": "object",
+      "description": "External stable IDs (Linked Places). Reuse, don't reinvent.",
+      "properties": {
+        "wikidata": { "type": "string" },
+        "whg": { "type": "string", "description": "World Historical Gazetteer place ID." },
+        "pleiades": { "type": "string" },
+        "geonames": { "type": "string" }
+      }
+    },
+    "modern_name": { "$ref": "common.schema.json#/$defs/LocalizedString", "description": "Present-day name if different (e.g. historical Yathrib -> Medina)." },
+    "info": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/InfoBlock" } },
+    "sources": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/Ref" } },
+    "themes": { "type": "array", "items": { "type": "string" } },
+    "ext": { "type": "object", "description": "Forward-compatibility bag." }
+  },
+  "required": ["id", "type", "names", "geometry"],
+  "additionalProperties": false
+}

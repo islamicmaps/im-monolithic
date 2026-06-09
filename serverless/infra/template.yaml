@@ -1,0 +1,121 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  islamicmaps.org deep/semantic search — HTTP API + Lambda + S3 (prebuilt
+  in-memory vector index) + Bedrock embeddings. The online-only complement
+  to the client's offline lexical index. Platform-agnostic REST so web +
+  native share it. OpenSearch Serverless was rejected on idle-cost grounds;
+  this stack has ~$0 cost at rest.
+
+Parameters:
+  IndexBucketName:
+    Type: String
+    Default: ""
+    Description: >
+      S3 bucket holding the prebuilt search index artifact. Leave blank to
+      let CloudFormation generate a unique name.
+  IndexKey:
+    Type: String
+    Default: search-index.json.gz
+    Description: S3 key for the gzipped JSON index artifact.
+  EmbedModel:
+    Type: String
+    Default: cohere.embed-multilingual-v3
+    Description: Bedrock embedding model id (multilingual recommended for Arabic + others).
+  EmbedDim:
+    Type: Number
+    Default: 1024
+  AllowedOrigin:
+    Type: String
+    Default: "*"
+    Description: CORS allow-origin (set to https://islamicmaps.org in production).
+
+Conditions:
+  HasBucketName: !Not [!Equals [!Ref IndexBucketName, ""]]
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures: [arm64]
+    Timeout: 29
+    # Generous memory: keeps the embedding matrix in RAM and gives more CPU
+    # for cold-start unzip + brute-force kNN.
+    MemorySize: 1024
+
+Resources:
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins: [!Ref AllowedOrigin]
+        AllowMethods: [GET, POST, OPTIONS]
+        AllowHeaders: [content-type]
+
+  IndexBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !If [HasBucketName, !Ref IndexBucketName, !Ref AWS::NoValue]
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+
+  SearchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../src
+      Handler: search.handler.lambda_handler
+      Environment:
+        Variables:
+          INDEX_BUCKET: !Ref IndexBucket
+          INDEX_KEY: !Ref IndexKey
+          EMBED_MODEL: !Ref EmbedModel
+          EMBED_DIM: !Ref EmbedDim
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource: arn:aws:bedrock:*::foundation-model/*
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource: !Sub "${IndexBucket.Arn}/*"
+            - Effect: Allow
+              Action:
+                - s3:ListBucket
+              Resource: !GetAtt IndexBucket.Arn
+      Events:
+        Search:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /v1/search
+            Method: POST
+        Health:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /v1/health
+            Method: GET
+
+Outputs:
+  ApiUrl:
+    Description: Base URL of the search API.
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  SearchEndpoint:
+    Description: 'POST a JSON body with a q field, e.g. {"q":"hijra"}.'
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/v1/search"
+  IndexBucket:
+    Description: S3 bucket — set INDEX_BUCKET to this when running the indexer.
+    Value: !Ref IndexBucket
+  IndexKey:
+    Description: S3 key for the index artifact.
+    Value: !Ref IndexKey

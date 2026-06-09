@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://islamicmaps.org/schema/catalog.schema.json",
+  "title": "Catalog",
+  "description": "The lean manifest loaded FIRST (and cached offline). Holds the theme taxonomy plus a LIGHTWEIGHT entry per story — enough to search, filter and list WITHOUT downloading any full story. The offline (client-side) search index is built from this file. Full stories are lazy-loaded on demand.",
+  "type": "object",
+  "properties": {
+    "version": { "type": "string" },
+    "updated": { "type": "string", "format": "date" },
+    "locales": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/LangCode" }, "description": "All available UI/content locales." },
+    "themes": {
+      "type": "array",
+      "description": "Theme taxonomy (tree via 'parent'). Replaces the dropdown — drives faceted filtering.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "$ref": "common.schema.json#/$defs/LocalizedString" },
+          "parent": { "type": "string", "description": "Parent theme id, for a hierarchy." },
+          "icon": { "type": "string" }
+        },
+        "required": ["id", "label"]
+      }
+    },
+    "stories": {
+      "type": "array",
+      "description": "One lightweight entry per story. Keep small — this is the always-loaded index.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/Id" },
+          "title": { "$ref": "common.schema.json#/$defs/LocalizedString" },
+          "subtitle": { "$ref": "common.schema.json#/$defs/LocalizedString" },
+          "category": { "type": "string" },
+          "themes": { "type": "array", "items": { "type": "string" } },
+          "keywords": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Extra search terms incl. transliterations + Arabic forms. The search-index build step normalizes Arabic (strips harakat; unifies alef forms أ إ آ -> ا and ta-marbuta ة -> ه) and folds these in."
+          },
+          "bbox": { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4 },
+          "thumb": { "type": "string", "description": "Thumbnail URL." },
+          "temporal_range": {
+            "type": ["object", "null"],
+            "properties": {
+              "min_sort_key": { "type": "number" },
+              "max_sort_key": { "type": "number" },
+              "display": { "$ref": "common.schema.json#/$defs/LocalizedString" }
+            },
+            "description": "Time span, for filtering by period and seeding the global time slider. Null/omitted for atemporal stories (e.g. a ritual guide)."
+          },
+          "languages": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/LangCode" } },
+          "url": { "type": "string", "description": "Path to the full story JSON (lazy-loaded, brotli on CDN)." },
+          "byte_size": { "type": "integer", "description": "Compressed size hint, so the client can warn on metered/slow connections." },
+          "updated": { "type": "string", "format": "date" }
+        },
+        "required": ["id", "title", "url"]
+      }
+    }
+  },
+  "required": ["version", "stories"],
+  "additionalProperties": false
+}

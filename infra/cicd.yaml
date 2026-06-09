@@ -1,0 +1,149 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  GitHub Actions OIDC trust + scoped deploy role for islamicmaps.org.
+  Lets a workflow in the configured GitHub repo assume an AWS role to deploy
+  without any long-lived access keys. Permissions are least-privilege over the
+  three existing islamicmaps stacks' resources.
+
+Parameters:
+  GitHubOrg:
+    Type: String
+    Default: islamicmaps
+    Description: GitHub org or user that owns the repo.
+  GitHubRepo:
+    Type: String
+    Default: im-monolithic
+    Description: Repository name (no slashes).
+  AllowedRefs:
+    Type: CommaDelimitedList
+    Default: "ref:refs/heads/main,pull_request"
+    Description: >
+      Which GitHub OIDC subjects can assume the role.
+      "ref:refs/heads/main" allows deploys from main; "pull_request" allows
+      validation/test runs on PRs (with read-only effective permissions via
+      a separate workflow choice). Comma-separated.
+  SiteBucket:
+    Type: String
+    Default: app.islamicmaps.org
+  IndexBucket:
+    Type: String
+    Default: islamicmaps-search-indexbucket-cwvzx7msvv1a
+  CloudFrontDistributionArn:
+    Type: String
+    Default: arn:aws:cloudfront::803129122420:distribution/E229ILRSBM7I4J
+
+Resources:
+  # ---------------------------------------------------------------------------
+  # 1) GitHub Actions OIDC identity provider — one per AWS account.
+  #    The thumbprint list is no longer required for AWS-managed verification
+  #    (AWS validates via the JWKS), but the field is still required by IAM,
+  #    so we pass the well-known starfield value.
+  # ---------------------------------------------------------------------------
+  GithubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: ["sts.amazonaws.com"]
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+        - 1c58a3a8518e8759bf075b76b750d4f2df264fcd
+
+  # ---------------------------------------------------------------------------
+  # 2) Deploy role — assumed by the workflow.
+  #    Sub claim is scoped to a specific repo + ref so PRs from forks cannot
+  #    obtain credentials. `aud` is fixed to sts.amazonaws.com.
+  # ---------------------------------------------------------------------------
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-github-deploy"
+      Description: !Sub "Deploy role for ${GitHubOrg}/${GitHubRepo} via GitHub OIDC."
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GithubOidcProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+              StringLike:
+                "token.actions.githubusercontent.com:sub":
+                  - !Sub "repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/main"
+                  - !Sub "repo:${GitHubOrg}/${GitHubRepo}:pull_request"
+      Policies:
+        - PolicyName: deploy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # S3: write to the two project buckets (and read for sync diffing).
+              - Sid: SiteBucketReadWrite
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                Resource:
+                  - !Sub "arn:aws:s3:::${SiteBucket}"
+                  - !Sub "arn:aws:s3:::${IndexBucket}"
+              - Sid: SiteObjectReadWrite
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:GetObjectVersion
+                  - s3:ListMultipartUploadParts
+                  - s3:AbortMultipartUpload
+                Resource:
+                  - !Sub "arn:aws:s3:::${SiteBucket}/*"
+                  - !Sub "arn:aws:s3:::${IndexBucket}/*"
+
+              # CloudFront invalidation — limited to the project distribution.
+              - Sid: CloudFrontInvalidate
+                Effect: Allow
+                Action: cloudfront:CreateInvalidation
+                Resource: !Ref CloudFrontDistributionArn
+
+              # Bedrock — for the index rebuild step (query-time embedding).
+              - Sid: BedrockEmbed
+                Effect: Allow
+                Action: bedrock:InvokeModel
+                Resource: arn:aws:bedrock:*::foundation-model/*
+
+              # CloudFormation describe (resolve stack outputs in deploy.sh).
+              - Sid: CfnDescribe
+                Effect: Allow
+                Action:
+                  - cloudformation:DescribeStacks
+                  - cloudformation:ListStackResources
+                  - cloudformation:DescribeStackResources
+                Resource: "*"
+
+              # Optional: allow IaC updates via SAM/CloudFormation. Tightly
+              # scoped to this project's stacks. PRs that need to touch infra
+              # should require a maintainer approval before merge to main.
+              - Sid: CfnDeploy
+                Effect: Allow
+                Action:
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:UpdateStack
+                  - cloudformation:GetTemplate
+                  - cloudformation:GetTemplateSummary
+                  - cloudformation:ValidateTemplate
+                Resource:
+                  - !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/islamicmaps-*"
+                  - !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/islamicmaps-*/*"
+                  - "arn:aws:cloudformation:*:aws:transform/Serverless-2016-10-31"
+
+Outputs:
+  RoleArn:
+    Description: Set this as AWS_ROLE_ARN secret/var in GitHub Actions.
+    Value: !GetAtt DeployRole.Arn
+  RoleName:
+    Value: !Ref DeployRole
+  OidcProviderArn:
+    Value: !Ref GithubOidcProvider

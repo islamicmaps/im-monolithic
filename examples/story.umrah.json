@@ -1,0 +1,63 @@
+{
+  "id": "umrah-steps",
+  "type": "story",
+  "title": { "en": "How to Perform Umrah", "ar": "كيفية أداء العمرة" },
+  "subtitle": { "en": "A step-by-step guide at the Masjid al-Haram", "ar": "دليل خطوة بخطوة في المسجد الحرام" },
+  "description": { "en": "A guided walkthrough of the rites of Umrah — ihram, tawaf, sa'i and halq — shown in 3D at their actual locations." },
+  "category": "ritual",
+  "themes": ["hajj", "worship"],
+  "cover": "asset:umrah-cover",
+  "bbox": [39.823, 21.420, 39.831, 21.426],
+  "default_view": { "center": [39.8262, 21.4225], "zoom": 17, "pitch": 60, "bearing": 20, "duration_ms": 2000 },
+  "languages": ["en", "ar"],
+  "features": ["feature:kaaba", "feature:kaaba-volume", "feature:safa-marwa-path"],
+  "events": [],
+  "playback": {
+    "mode": "sequential",
+    "steps": [
+      {
+        "id": "ihram",
+        "order": 1,
+        "title": { "en": "1. Enter Ihram", "ar": "الإحرام" },
+        "narration": { "en": "Enter the state of ihram at the miqat with the intention for Umrah, reciting the Talbiyah." },
+        "audio": "asset:talbiyah-audio",
+        "camera": { "center": [39.8262, 21.4225], "zoom": 16, "pitch": 55, "duration_ms": 2500 }
+      },
+      {
+        "id": "tawaf",
+        "order": 2,
+        "title": { "en": "2. Tawaf", "ar": "الطواف" },
+        "narration": { "en": "Circle the Kaaba seven times anti-clockwise, beginning at the Black Stone." },
+        "camera": { "center": [39.8262, 21.4225], "zoom": 19, "pitch": 70, "bearing": 30, "duration_ms": 3000 },
+        "show": ["feature:kaaba", "feature:kaaba-volume"],
+        "animate": [ { "feature": "feature:tawaf-circle", "kind": "move_marker", "marker": "feature:pilgrim-marker", "t_start": 0, "t_end": 1 } ],
+        "duration_ms": 14000
+      },
+      {
+        "id": "sai",
+        "order": 3,
+        "title": { "en": "3. Sa'i", "ar": "السعي" },
+        "narration": { "en": "Walk seven times between the hills of Safa and Marwa." },
+        "camera": { "center": [39.8270, 21.4220], "zoom": 17, "pitch": 50, "bearing": 90, "duration_ms": 3000 },
+        "show": ["feature:safa-marwa-path"],
+        "animate": [ { "feature": "feature:safa-marwa-path", "kind": "move_marker", "marker": "feature:pilgrim-marker", "t_start": 0, "t_end": 1 } ],
+        "duration_ms": 12000
+      },
+      {
+        "id": "halq",
+        "order": 4,
+        "title": { "en": "4. Halq / Taqsir", "ar": "الحلق أو التقصير" },
+        "narration": { "en": "Shave or shorten the hair to complete the Umrah." },
+        "camera": { "center": [39.8266, 21.4222], "zoom": 17, "pitch": 45, "duration_ms": 2500 }
+      }
+    ]
+  },
+  "scrolly": { "enabled": false },
+  "info": [
+    { "kind": "text", "body": { "en": "Umrah is a non-obligatory pilgrimage that can be performed at any time of year." } },
+    { "kind": "citation", "source": "source:sealed-nectar" }
+  ],
+  "sources": ["source:sealed-nectar"],
+  "review": { "stage": "ai-generated", "certainty": "established", "note": { "en": "Ritual procedure to be confirmed by a qualified scholar before publication." }, "updated": "2026-06-08" },
+  "updated": "2026-06-08"
+}

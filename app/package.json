@@ -1,0 +1,11 @@
+{
+  "name": "islamicmaps-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "islamicmaps.org web client (MapLibre + deck.gl, zero-build ESM PWA).",
+  "scripts": {
+    "test": "node test/logic.test.mjs",
+    "serve": "python3 -m http.server 8000 --directory .."
+  }
+}

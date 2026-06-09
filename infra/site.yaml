@@ -1,0 +1,286 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  islamicmaps.org static site — S3 (private, OAC) + CloudFront (HTTPS, brotli/gzip,
+  SPA fallback) + ACM (DNS-validated) + WAFv2 (managed rules + rate limit) +
+  Route53 alias records. Deploys a brand-new subdomain; touches no pre-existing
+  apex/www records or buckets.
+
+Parameters:
+  DomainName:
+    Type: String
+    Default: app.islamicmaps.org
+    Description: Fully-qualified subdomain to host the site.
+  HostedZoneId:
+    Type: String
+    Default: Z00115081OG6U8JV61C2I
+    Description: Route53 hosted zone id for islamicmaps.org.
+  RateLimitPer5Min:
+    Type: Number
+    Default: 2000
+    Description: WAF per-IP rate limit (requests per 5 minutes).
+  PriceClass:
+    Type: String
+    Default: PriceClass_100
+    AllowedValues: [PriceClass_100, PriceClass_200, PriceClass_All]
+    Description: CloudFront edge footprint. _100 (NA+EU) is cheapest; bump later.
+
+Resources:
+  # ---------------------------------------------------------------------------
+  # 1) Origin S3 bucket — private, encrypted, versioned. Reached only via OAC.
+  # ---------------------------------------------------------------------------
+  SiteBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref DomainName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+
+  # ---------------------------------------------------------------------------
+  # 2) ACM cert in us-east-1 (CloudFront requires this region).
+  #    DNS-validated: HostedZoneId on the validation option lets CloudFormation
+  #    auto-create the CNAME validation record in Route53.
+  # ---------------------------------------------------------------------------
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref DomainName
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZoneId
+
+  # ---------------------------------------------------------------------------
+  # 3) WAFv2 WebACL — CLOUDFRONT scope (must be us-east-1).
+  #    AWSManagedRulesCommonRuleSet + IP reputation + per-IP rate limit.
+  # ---------------------------------------------------------------------------
+  WebAcl:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: !Sub "${AWS::StackName}-cf-acl"
+      Scope: CLOUDFRONT
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub "${AWS::StackName}-acl"
+      Rules:
+        - Name: AWSManagedRulesCommonRuleSet
+          Priority: 0
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: common-rules
+        - Name: AWSManagedRulesAmazonIpReputationList
+          Priority: 1
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesAmazonIpReputationList
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: ip-reputation
+        - Name: RateLimitPerIp
+          Priority: 2
+          Action:
+            Block: {}
+          Statement:
+            RateBasedStatement:
+              Limit: !Ref RateLimitPer5Min
+              AggregateKeyType: IP
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: rate-limit
+
+  # ---------------------------------------------------------------------------
+  # 4) Origin Access Control (modern replacement for OAI). SigV4-signs requests
+  #    from CloudFront → S3 so the bucket can stay fully private.
+  # ---------------------------------------------------------------------------
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${AWS::StackName}-oac"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # ---------------------------------------------------------------------------
+  # 5) Cache policy for "always-fresh" paths (catalog, search index, sw.js,
+  #    index.html). Short TTL, but still cache-key normalized.
+  # ---------------------------------------------------------------------------
+  ShortTtlCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub "${AWS::StackName}-short-ttl"
+        Comment: Short TTL for catalog / index / sw.js / html shells
+        DefaultTTL: 60
+        MinTTL: 0
+        MaxTTL: 300
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingBrotli: true
+          EnableAcceptEncodingGzip: true
+          CookiesConfig:
+            CookieBehavior: none
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  # ---------------------------------------------------------------------------
+  # 6) CloudFront distribution. Brotli/gzip auto-compression, HTTP→HTTPS,
+  #    SPA fallback (403/404 → /index.html), private S3 origin via OAC, custom
+  #    domain alias, WAF associated.
+  # ---------------------------------------------------------------------------
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        IPV6Enabled: true
+        HttpVersion: http2and3
+        Comment: !Sub "${DomainName} static site"
+        Aliases: [!Ref DomainName]
+        PriceClass: !Ref PriceClass
+        DefaultRootObject: index.html
+        WebACLId: !GetAtt WebAcl.Arn
+        ViewerCertificate:
+          AcmCertificateArn: !Ref Certificate
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        Origins:
+          - Id: SiteOrigin
+            DomainName: !GetAtt SiteBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+            OriginAccessControlId: !GetAtt OriginAccessControl.Id
+        DefaultCacheBehavior:
+          TargetOriginId: SiteOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          # AWS managed CachingOptimized — long TTL, gzip+brotli aware.
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+        CacheBehaviors:
+          - PathPattern: /catalog.json
+            TargetOriginId: SiteOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD]
+            Compress: true
+            CachePolicyId: !Ref ShortTtlCachePolicy
+          - PathPattern: /search/*
+            TargetOriginId: SiteOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD]
+            Compress: true
+            CachePolicyId: !Ref ShortTtlCachePolicy
+          - PathPattern: /sw.js
+            TargetOriginId: SiteOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD]
+            Compress: true
+            CachePolicyId: !Ref ShortTtlCachePolicy
+          - PathPattern: /index.html
+            TargetOriginId: SiteOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD]
+            Compress: true
+            CachePolicyId: !Ref ShortTtlCachePolicy
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 10
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 10
+
+  # ---------------------------------------------------------------------------
+  # 7) Bucket policy — allow ONLY this CloudFront distribution to GetObject.
+  # ---------------------------------------------------------------------------
+  SiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SiteBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontReadOnly
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${SiteBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}"
+
+  # ---------------------------------------------------------------------------
+  # 8) Route53 alias records (A + AAAA) → CloudFront.
+  # ---------------------------------------------------------------------------
+  DnsA:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref DomainName
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt Distribution.DomainName
+        # Z2FDTNDATAQYW2 = global CloudFront alias zone id (constant).
+        HostedZoneId: Z2FDTNDATAQYW2
+        EvaluateTargetHealth: false
+
+  DnsAAAA:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref DomainName
+      Type: AAAA
+      AliasTarget:
+        DNSName: !GetAtt Distribution.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2
+        EvaluateTargetHealth: false
+
+Outputs:
+  SiteUrl:
+    Description: Public HTTPS URL
+    Value: !Sub "https://${DomainName}"
+  SiteBucket:
+    Description: S3 bucket holding the static content
+    Value: !Ref SiteBucket
+  DistributionId:
+    Description: CloudFront distribution id (for invalidations)
+    Value: !Ref Distribution
+  DistributionDomain:
+    Description: CloudFront default domain
+    Value: !GetAtt Distribution.DomainName
+  WebAclArn:
+    Description: WAF WebACL ARN
+    Value: !GetAtt WebAcl.Arn

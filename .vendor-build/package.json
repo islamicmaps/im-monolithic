@@ -1,0 +1,20 @@
+{
+  "name": "imaps-vendor-build",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": { "build": "node build.mjs" },
+  "dependencies": {
+    "maplibre-gl": "5.24.0",
+    "deck.gl": "9.3.3",
+    "@deck.gl/mapbox": "9.3.3",
+    "@deck.gl/core": "9.3.3",
+    "@deck.gl/layers": "9.3.3",
+    "@deck.gl/mesh-layers": "9.3.3",
+    "pmtiles": "4.4.1",
+    "protomaps-themes-base": "4.5.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}

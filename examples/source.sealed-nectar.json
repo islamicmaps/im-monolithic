@@ -1,0 +1,11 @@
+{
+  "id": "sealed-nectar",
+  "type": "source",
+  "kind": "book",
+  "title": { "en": "The Sealed Nectar (Ar-Raheeq Al-Makhtum)", "ar": "الرحيق المختوم" },
+  "author": { "en": "Safiur Rahman al-Mubarakpuri", "ar": "صفي الرحمن المباركفوري" },
+  "publisher": { "en": "Darussalam" },
+  "year": { "sort_key": 1979, "gregorian": { "year": 1979 }, "calendar": "gregorian", "era": "CE", "display": { "en": "1979" } },
+  "reliability": { "en": "Award-winning modern seerah; widely cited. Cross-check contested details against classical sources (Ibn Hisham, al-Tabari)." },
+  "ext": {}
+}

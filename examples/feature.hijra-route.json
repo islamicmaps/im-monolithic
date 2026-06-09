@@ -1,0 +1,36 @@
+{
+  "id": "hijra-route",
+  "type": "feature",
+  "label": { "en": "Route of the Hijra", "ar": "طريق الهجرة" },
+  "geometry": {
+    "inline": {
+      "type": "LineString",
+      "coordinates": [
+        [39.8262, 21.4225],
+        [39.8530, 21.3730],
+        [39.5000, 21.9000],
+        [39.1000, 22.8000],
+        [38.9000, 23.6000],
+        [39.6142, 24.4672]
+      ]
+    }
+  },
+  "render2d": { "shape": "line", "color": "#1f7a4d", "width": 3, "opacity": 0.9 },
+  "temporal": {
+    "edtf": "0622",
+    "calendar": "gregorian",
+    "era": "CE",
+    "precision": "year",
+    "certainty": "circa",
+    "gregorian": { "year": 622 },
+    "hijri": { "year": 1 },
+    "sort_key": 622.7,
+    "display": { "en": "622 CE / 1 AH", "ar": "٦٢٢ م / ١ هـ" },
+    "note": { "en": "Indirect southern detour to evade Quraysh pursuit; exact waypoints are reconstructed and approximate." }
+  },
+  "info": [
+    { "kind": "text", "body": { "en": "The Prophet ﷺ and Abu Bakr travelled an indirect route, first hiding in the Cave of Thawr." } }
+  ],
+  "sources": ["source:sealed-nectar"],
+  "themes": ["seerah"]
+}

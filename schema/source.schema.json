@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://islamicmaps.org/schema/source.schema.json",
+  "title": "Source",
+  "description": "A citation backing content — the provenance shown behind the 'i' button. Religious content MUST be sourced; keep this schema extensible as sourcing rigor grows.",
+  "type": "object",
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/Id" },
+    "type": { "const": "source" },
+    "kind": { "enum": ["quran", "hadith", "book", "article", "manuscript", "map", "website", "scholar"] },
+    "title": { "$ref": "common.schema.json#/$defs/LocalizedString" },
+    "author": { "$ref": "common.schema.json#/$defs/LocalizedString" },
+    "year": { "$ref": "common.schema.json#/$defs/DateValue", "description": "Publication / authorship date. Optional." },
+    "publisher": { "$ref": "common.schema.json#/$defs/LocalizedString" },
+    "edition": { "type": "string" },
+    "page": { "type": "string", "description": "Page / volume:page / section." },
+    "isbn": { "type": "string" },
+    "quran": {
+      "type": "object",
+      "properties": { "surah": { "type": "integer" }, "ayah_start": { "type": "integer" }, "ayah_end": { "type": "integer" } }
+    },
+    "hadith": {
+      "type": "object",
+      "properties": {
+        "collection": { "type": "string" },
+        "number": { "type": "string" },
+        "grade": { "type": "string", "description": "e.g. sahih, hasan, da'if." },
+        "narrator": { "$ref": "common.schema.json#/$defs/LocalizedString" }
+      }
+    },
+    "url": { "type": "string", "format": "uri" },
+    "archive_url": { "type": "string", "format": "uri", "description": "Wayback / permanent archive copy." },
+    "reliability": { "$ref": "common.schema.json#/$defs/LocalizedString", "description": "Note on authenticity / authority / known disputes." },
+    "ext": { "type": "object" }
+  },
+  "required": ["id", "type", "kind", "title"],
+  "additionalProperties": false
+}

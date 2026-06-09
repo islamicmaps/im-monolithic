@@ -1,0 +1,20 @@
+{
+  "id": "safa-marwa-path",
+  "type": "feature",
+  "label": { "en": "Sa'i path (Safa to Marwa)", "ar": "مسار السعي" },
+  "geometry": {
+    "inline": {
+      "type": "LineString",
+      "coordinates": [
+        [39.8270, 21.4216],
+        [39.8277, 21.4235],
+        [39.8285, 21.4254]
+      ]
+    }
+  },
+  "render2d": { "shape": "line", "color": "#8e44ad", "width": 3, "opacity": 0.85 },
+  "info": [
+    { "kind": "text", "body": { "en": "Pilgrims walk seven times between the hillocks of Safa and Marwa, commemorating Hajar's search for water for her son Isma'il." } }
+  ],
+  "themes": ["hajj"]
+}

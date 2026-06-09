@@ -1,0 +1,62 @@
+# PR validation: schema + pipeline + Node + Python tests + IaC lint.
+# Read-only. Runs on every PR and on every push (cheap; ~1 min wall clock).
+
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: ["**"]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install jsonschema brotli pyyaml boto3 cfn-lint
+
+      - name: Build content pipeline (schema validate + bundle + index)
+        run: python3 -m pipeline.build --clean
+
+      - name: Search API pure-core tests
+        run: python3 serverless/tests/test_search.py
+
+      - name: Web client pure-core tests
+        working-directory: app
+        run: node test/logic.test.mjs
+
+      - name: cfn-lint infra/*.yaml
+        run: cfn-lint infra/*.yaml --include-checks I
+
+      - name: SAM-style validate the search template (basic, no SAM CLI needed)
+        run: |
+          python3 - <<'PY'
+          import yaml, sys, pathlib
+          # Tolerant loader: ignore !Ref/!Sub/etc. so we can structurally check.
+          class Loader(yaml.SafeLoader): pass
+          def _ignore(loader, tag, node):
+              if isinstance(node, yaml.ScalarNode):  return loader.construct_scalar(node)
+              if isinstance(node, yaml.SequenceNode):return loader.construct_sequence(node)
+              if isinstance(node, yaml.MappingNode): return loader.construct_mapping(node)
+          Loader.add_multi_constructor("!", _ignore)
+          for f in ["serverless/infra/template.yaml", "infra/site.yaml", "infra/observability.yaml", "infra/cicd.yaml"]:
+              doc = yaml.load(pathlib.Path(f).read_text(), Loader=Loader)
+              assert "Resources" in doc, f"{f} missing Resources"
+              print(f"  ok  {f}: {len(doc['Resources'])} resources")
+          PY

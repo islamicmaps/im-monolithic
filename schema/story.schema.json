@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://islamicmaps.org/schema/story.schema.json",
+  "title": "Story",
+  "description": "The headline unit users discover via search + themes. A curated, playable bundle that COMPOSES features + events and defines playback: either a real-date TIMELINE (global time slider) or an ordered SEQUENCE of steps (e.g. a ritual). This is what the play button drives. A Story may also be static (mode=none) — e.g. just a 3D landmark.",
+  "type": "object",
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/Id" },
+    "type": { "const": "story" },
+    "title": { "$ref": "common.schema.json#/$defs/LocalizedString" },
+    "subtitle": { "$ref": "common.schema.json#/$defs/LocalizedString" },
+    "description": { "$ref": "common.schema.json#/$defs/LocalizedString" },
+    "category": { "enum": ["historical", "ritual", "architecture", "biography", "geography", "conquest", "trade", "other"] },
+    "themes": { "type": "array", "items": { "type": "string" }, "description": "Theme taxonomy ids (defined in catalog)." },
+    "cover": { "$ref": "common.schema.json#/$defs/Ref", "description": "Cover/thumbnail asset." },
+    "bbox": { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4, "description": "[west, south, east, north] — initial fit bounds." },
+    "default_view": { "$ref": "common.schema.json#/$defs/CameraState" },
+    "languages": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/LangCode" }, "description": "Locales this story's content is authored in." },
+    "features": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/Ref" } },
+    "events": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/Ref" } },
+    "playback": {
+      "type": "object",
+      "description": "How the story animates.",
+      "properties": {
+        "mode": {
+          "enum": ["temporal", "sequential", "none"],
+          "description": "temporal = driven by real dates; shows the global time slider (e.g. the Hijra). sequential = ordered steps with no real dates (e.g. Umrah ritual). none = static map (e.g. a single 3D landmark)."
+        },
+        "timeline": {
+          "type": "object",
+          "description": "Present when mode=temporal.",
+          "properties": {
+            "min": { "$ref": "common.schema.json#/$defs/DateValue" },
+            "max": { "$ref": "common.schema.json#/$defs/DateValue" },
+            "speeds": { "type": "array", "items": { "type": "number" }, "default": [1, 2, 5], "description": "Selectable playback speed multipliers (play/pause/speed)." }
+          }
+        },
+        "steps": { "type": "array", "items": { "$ref": "#/$defs/Step" }, "description": "Ordered playback keyframes/steps." }
+      },
+      "required": ["mode"]
+    },
+    "scrolly": {
+      "type": "object",
+      "description": "Scrollytelling: narrative sections bound to playback steps; as the reader scrolls, the map advances to the bound step.",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "step": { "type": "string", "description": "Step id this section binds to." },
+              "text": { "$ref": "common.schema.json#/$defs/LocalizedString" },
+              "media": { "$ref": "common.schema.json#/$defs/Ref" }
+            },
+            "required": ["step"]
+          }
+        }
+      }
+    },
+    "info": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/InfoBlock" } },
+    "sources": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/Ref" } },
+    "review": { "$ref": "common.schema.json#/$defs/ReviewStatus" },
+    "updated": { "type": "string", "format": "date" },
+    "ext": { "type": "object" }
+  },
+  "required": ["id", "type", "title", "category", "playback"],
+  "additionalProperties": false,
+  "$defs": {
+    "Step": {
+      "type": "object",
+      "description": "One playback keyframe. Drives the camera, reveals/hides features, narrates, and animates routes/markers.",
+      "properties": {
+        "id": { "type": "string" },
+        "order": { "type": "integer", "description": "Sequence position (mode=sequential)." },
+        "at_time": { "$ref": "common.schema.json#/$defs/DateValue", "description": "When this step occurs (mode=temporal); its sort_key positions it on the time slider." },
+        "title": { "$ref": "common.schema.json#/$defs/LocalizedString" },
+        "narration": { "$ref": "common.schema.json#/$defs/LocalizedString", "description": "On-screen narration text for this step." },
+        "audio": { "$ref": "common.schema.json#/$defs/Ref", "description": "Optional narration/recitation audio asset (per-language tracks live on the asset)." },
+        "image": { "$ref": "common.schema.json#/$defs/Ref" },
+        "camera": { "$ref": "common.schema.json#/$defs/CameraState" },
+        "show": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/Ref" }, "description": "Features revealed at this step." },
+        "hide": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/Ref" }, "description": "Features hidden at this step." },
+        "animate": {
+          "type": "array",
+          "description": "Animations to run during this step.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "feature": { "$ref": "common.schema.json#/$defs/Ref", "description": "Usually a LineString feature acting as the path." },
+              "kind": { "enum": ["draw_path", "move_marker", "trip"], "description": "draw_path = progressively draw the route; move_marker / trip = move a marker along the path (renders via deck.gl TripsLayer)." },
+              "marker": { "$ref": "common.schema.json#/$defs/Ref", "description": "Marker feature/asset to move (kind=move_marker/trip)." },
+              "t_start": { "type": "number", "description": "Start position: 0..1 within the step, or a sort_key in temporal mode." },
+              "t_end": { "type": "number", "description": "End position." }
+            },
+            "required": ["feature", "kind"]
+          }
+        },
+        "duration_ms": { "type": "integer", "description": "How long this step plays before auto-advancing." },
+        "ext": { "type": "object" }
+      },
+      "required": ["id"]
+    }
+  }
+}

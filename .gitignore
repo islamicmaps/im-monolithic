@@ -1,0 +1,37 @@
+# Build output (regenerable from pipeline.build)
+dist/
+
+# Vendor bundle build artifacts (regenerable from .vendor-build/build.mjs).
+# The OUTPUT (app/vendor/*.mjs) IS checked in — it's what the live site serves.
+.vendor-build/node_modules/
+.vendor-build/package-lock.json
+
+# Node / Python caches
+node_modules/
+__pycache__/
+*.pyc
+
+# AWS SAM build cache
+serverless/.aws-sam/
+
+# OS / editor cruft
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Local AWS CLI bundle (downloaded once, do not re-commit) — the WHOLE
+# `aws/` dir is the unpacked installer (~261 MB of binaries) that lives
+# only on the dev machine.
+awscliv2.zip
+aws/
+
+# Generated PMTiles basemap is large and out-of-band (built via
+# `pmtiles extract` from build.protomaps.com). Lives at
+# ~/.cache/imaps/basemap-hijaz.pmtiles per pipeline/basemap.py.
+*.pmtiles
+
+# Local secrets / env
+.env
+.env.*
+!.env.example

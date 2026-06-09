@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://islamicmaps.org/schema/event.schema.json",
+  "title": "Event",
+  "description": "Something that happened in time and space. An Event COMPOSES smaller units: it references places + features and carries a temporal extent. This is the mechanism by which individual map units connect into a meaningful happening. (Dates are an attribute OF an event — not the atomic unit.)",
+  "type": "object",
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/Id" },
+    "type": { "const": "event" },
+    "title": { "$ref": "common.schema.json#/$defs/LocalizedString" },
+    "summary": { "$ref": "common.schema.json#/$defs/LocalizedString" },
+    "temporal": {
+      "type": "object",
+      "description": "Time extent. 'start' recommended; omit both only for genuinely undated/disputed events. 'end' omitted = instantaneous.",
+      "properties": {
+        "start": { "$ref": "common.schema.json#/$defs/DateValue" },
+        "end": { "$ref": "common.schema.json#/$defs/DateValue" }
+      }
+    },
+    "places": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/Ref" }, "description": "Places involved." },
+    "features": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/Ref" }, "description": "Map features depicting this event (routes, markers, regions)." },
+    "people": {
+      "type": "array",
+      "description": "Actors involved. Kept inline + simple now; can be promoted to a first-class entity later.",
+      "items": { "type": "object", "properties": { "name": { "$ref": "common.schema.json#/$defs/LocalizedString" }, "role": { "$ref": "common.schema.json#/$defs/LocalizedString" } } }
+    },
+    "info": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/InfoBlock" } },
+    "sources": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/Ref" } },
+    "themes": { "type": "array", "items": { "type": "string" } },
+    "ext": { "type": "object" }
+  },
+  "required": ["id", "type", "title"],
+  "additionalProperties": false
+}

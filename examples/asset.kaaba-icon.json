@@ -1,0 +1,10 @@
+{
+  "id": "kaaba-icon",
+  "type": "asset",
+  "media": "icon",
+  "title": { "en": "Kaaba icon" },
+  "alt_text": { "en": "Kaaba marker icon" },
+  "src": "https://cdn.islamicmaps.org/icons/kaaba.svg",
+  "license": "CC-BY-4.0",
+  "attribution": { "en": "islamicmaps.org" }
+}

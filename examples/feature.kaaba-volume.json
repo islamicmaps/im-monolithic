@@ -1,0 +1,25 @@
+{
+  "id": "kaaba-volume",
+  "type": "feature",
+  "label": { "en": "The Kaaba (3D)", "ar": "الكعبة (مجسم)" },
+  "place": "place:makkah",
+  "geometry": {
+    "inline": {
+      "type": "Polygon",
+      "coordinates": [[
+        [39.82614, 21.42245],
+        [39.82626, 21.42245],
+        [39.82626, 21.42255],
+        [39.82614, 21.42255],
+        [39.82614, 21.42245]
+      ]]
+    }
+  },
+  "render2d": { "shape": "fill", "color": "#111111", "opacity": 0.6 },
+  "render3d": { "extrude": { "height_m": 13.1, "base_m": 0 } },
+  "info": [
+    { "kind": "text", "body": { "en": "Procedural 3D rendering of the Kaaba's volume — a near-cuboid ~12 × 10.5 m at base, ~13.1 m tall. Polygon extrusion at zero asset weight; a high-fidelity glTF replaces this when authored." } }
+  ],
+  "sources": ["source:sealed-nectar"],
+  "themes": ["hajj", "holy-sites"]
+}

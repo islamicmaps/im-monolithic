@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://islamicmaps.org/schema/feature.schema.json",
+  "title": "Feature",
+  "description": "A single renderable thing on the map (point / line / region / model placement). Carries BOTH a 2D representation and an OPTIONAL 3D one, so the client adapts to bandwidth and device. Temporal is OPTIONAL — atemporal features are allowed (e.g. the present-day Kaaba).",
+  "type": "object",
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/Id" },
+    "type": { "const": "feature" },
+    "label": { "$ref": "common.schema.json#/$defs/LocalizedString" },
+    "place": { "$ref": "common.schema.json#/$defs/Ref", "description": "Optional anchor Place this feature sits at." },
+    "geometry": { "$ref": "common.schema.json#/$defs/GeometrySource" },
+    "render2d": {
+      "type": "object",
+      "description": "Always present — the low-bandwidth baseline that must always work.",
+      "properties": {
+        "shape": { "enum": ["marker", "line", "fill", "circle", "symbol"] },
+        "icon": { "$ref": "common.schema.json#/$defs/Ref", "description": "Ref to an icon asset (shape=marker/symbol)." },
+        "color": { "type": "string", "description": "CSS color / hex." },
+        "width": { "type": "number", "description": "Line width (shape=line)." },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "required": ["shape"]
+    },
+    "render3d": {
+      "type": "object",
+      "description": "Optional 3D enhancement. Two cheap-to-rich options: a full glTF model, or procedural polygon extrusion (no model asset needed).",
+      "properties": {
+        "model": { "$ref": "common.schema.json#/$defs/Ref", "description": "Ref to a model3d asset." },
+        "extrude": {
+          "type": "object",
+          "properties": { "height_m": { "type": "number" }, "base_m": { "type": "number", "default": 0 } },
+          "description": "Extrude a Polygon to this height — lightweight 3D with zero model download."
+        }
+      }
+    },
+    "temporal": { "$ref": "common.schema.json#/$defs/DateValue", "description": "OPTIONAL. Omit for timeless features." },
+    "info": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/InfoBlock" } },
+    "sources": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/Ref" } },
+    "themes": { "type": "array", "items": { "type": "string" } },
+    "ext": { "type": "object" }
+  },
+  "required": ["id", "type", "geometry", "render2d"],
+  "additionalProperties": false
+}

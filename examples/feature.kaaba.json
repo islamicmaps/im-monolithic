@@ -1,0 +1,13 @@
+{
+  "id": "kaaba",
+  "type": "feature",
+  "label": { "en": "The Kaaba", "ar": "الكعبة المشرفة" },
+  "place": "place:makkah",
+  "geometry": { "inline": { "type": "Point", "coordinates": [39.8262, 21.4225] } },
+  "render2d": { "shape": "marker", "icon": "asset:kaaba-icon", "color": "#111111" },
+  "info": [
+    { "kind": "text", "body": { "en": "The cuboid structure at the centre of the Masjid al-Haram; the direction of prayer (qibla). Atemporal — no date attached." } }
+  ],
+  "sources": ["source:sealed-nectar"],
+  "themes": ["hajj", "holy-sites"]
+}

@@ -1,0 +1,74 @@
+# Auto-deploy on every push to main.
+# Uses GitHub OIDC → AWS IAM (no long-lived keys).
+# Manually triggerable via "Run workflow" too.
+#
+# Required repo variable / secret (set once after CFN stack `islamicmaps-cicd` deploys):
+#   AWS_ROLE_ARN  =  output `RoleArn` from the cicd stack
+
+name: deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "schema/**"
+      - "examples/**"
+      - "pipeline/**"
+      - "serverless/src/**"
+      - "scripts/deploy.sh"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch: {}
+
+# Avoid two deploys racing.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+permissions:
+  id-token: write   # OIDC
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install jsonschema brotli boto3
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-session-name: gh-deploy-${{ github.run_id }}
+          aws-region: us-east-1
+
+      - name: Run deploy.sh
+        run: ./scripts/deploy.sh
+        env:
+          AWS_REGION: us-east-1
+          SITE_STACK: islamicmaps-app
+          SEARCH_STACK: islamicmaps-search
+
+      - name: Smoke-test live endpoints
+        run: |
+          set -euo pipefail
+          curl -fsS https://app.islamicmaps.org/ -o /dev/null
+          curl -fsS https://app.islamicmaps.org/dist/catalog.json -o /dev/null
+          curl -fsS https://klc37q0kng.execute-api.us-east-1.amazonaws.com/v1/health -o /dev/null
+          rc=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+                  -H "content-type: application/json" \
+                  -d '{"q":"hijra","mode":"hybrid","k":1}' \
+                  https://klc37q0kng.execute-api.us-east-1.amazonaws.com/v1/search)
+          test "$rc" = "200"
+          echo "Smoke OK"

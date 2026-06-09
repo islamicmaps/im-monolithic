@@ -1,0 +1,18 @@
+{
+  "id": "hijra",
+  "type": "event",
+  "title": { "en": "The Hijra (Migration to Medina)", "ar": "الهجرة النبوية" },
+  "summary": { "en": "The migration of the Prophet Muhammad ﷺ from Mecca to Medina, marking the start of the Islamic (Hijri) calendar." },
+  "temporal": {
+    "start": { "edtf": "0622-09", "calendar": "gregorian", "era": "CE", "precision": "month", "certainty": "circa", "gregorian": { "year": 622, "month": 9 }, "hijri": { "year": 1 }, "sort_key": 622.67, "display": { "en": "Sept 622 CE" } },
+    "end": { "edtf": "0622-09", "calendar": "gregorian", "era": "CE", "precision": "month", "certainty": "circa", "gregorian": { "year": 622, "month": 9 }, "sort_key": 622.7, "display": { "en": "Sept 622 CE" } }
+  },
+  "places": ["place:makkah", "place:madinah"],
+  "features": ["feature:hijra-route"],
+  "people": [
+    { "name": { "en": "Prophet Muhammad ﷺ", "ar": "محمد ﷺ" }, "role": { "en": "Migrant" } },
+    { "name": { "en": "Abu Bakr as-Siddiq", "ar": "أبو بكر الصديق" }, "role": { "en": "Companion" } }
+  ],
+  "sources": ["source:sealed-nectar"],
+  "themes": ["seerah"]
+}

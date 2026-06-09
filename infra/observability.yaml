@@ -1,0 +1,337 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  islamicmaps.org observability — one CloudWatch dashboard spanning Lambda /
+  API Gateway / CloudFront / WAF / S3, plus alarms wired to an SNS topic.
+  Deploy AFTER `islamicmaps-search` and `islamicmaps-app`. All resources are
+  net-new and contained to this stack; nothing else is mutated.
+
+Parameters:
+  SearchFunctionName:
+    Type: String
+    Default: islamicmaps-search-SearchFunction-jJJwPsk2NAnK
+    Description: Physical name of the search Lambda function.
+  HttpApiId:
+    Type: String
+    Default: klc37q0kng
+    Description: API Gateway HTTP API id.
+  CloudFrontDistributionId:
+    Type: String
+    Default: E229ILRSBM7I4J
+  WebAclName:
+    Type: String
+    Default: islamicmaps-app-cf-acl
+  SiteBucket:
+    Type: String
+    Default: app.islamicmaps.org
+  IndexBucket:
+    Type: String
+    Default: islamicmaps-search-indexbucket-cwvzx7msvv1a
+  AlarmEmail:
+    Type: String
+    Default: ""
+    Description: >
+      Optional email for alarm notifications. Leave blank to create the SNS
+      topic without a subscription (subscribe later with `aws sns subscribe`).
+
+Conditions:
+  HasAlarmEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
+
+Resources:
+  # ---------------------------------------------------------------------------
+  # SNS topic for alarms — alarms fan out here; subscribers (email/Slack/etc.)
+  # are added separately so this template stays portable.
+  # ---------------------------------------------------------------------------
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${AWS::StackName}-alarms"
+      DisplayName: islamicmaps alarms
+
+  AlarmEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasAlarmEmail
+    Properties:
+      TopicArn: !Ref AlarmTopic
+      Protocol: email
+      Endpoint: !Ref AlarmEmail
+
+  # ---------------------------------------------------------------------------
+  # Lambda alarms
+  # ---------------------------------------------------------------------------
+  LambdaErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-lambda-errors"
+      AlarmDescription: Search Lambda has thrown errors. Check CloudWatch logs.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref SearchFunctionName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+      OKActions: [!Ref AlarmTopic]
+
+  LambdaThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-lambda-throttles"
+      AlarmDescription: Search Lambda is being throttled — bump reserved/concurrency.
+      Namespace: AWS/Lambda
+      MetricName: Throttles
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref SearchFunctionName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  LambdaP95DurationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-lambda-p95-duration"
+      AlarmDescription: Search Lambda p95 latency is high (>3s).
+      Namespace: AWS/Lambda
+      MetricName: Duration
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref SearchFunctionName
+      ExtendedStatistic: p95
+      Period: 300
+      EvaluationPeriods: 2
+      DatapointsToAlarm: 2
+      Threshold: 3000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  # ---------------------------------------------------------------------------
+  # API Gateway alarms (HTTP API v2)
+  # ---------------------------------------------------------------------------
+  ApiGw5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-apigw-5xx"
+      AlarmDescription: API Gateway 5xx errors detected.
+      Namespace: AWS/ApiGateway
+      MetricName: 5xx
+      Dimensions:
+        - Name: ApiId
+          Value: !Ref HttpApiId
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+      OKActions: [!Ref AlarmTopic]
+
+  # ---------------------------------------------------------------------------
+  # CloudFront alarm — global metrics live in us-east-1 (where this stack is).
+  # 5xxErrorRate is a percentage (0–100).
+  # ---------------------------------------------------------------------------
+  CloudFront5xxRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-cloudfront-5xx-rate"
+      AlarmDescription: CloudFront 5xx error rate above 1% over 5 minutes.
+      Namespace: AWS/CloudFront
+      MetricName: 5xxErrorRate
+      Dimensions:
+        - Name: DistributionId
+          Value: !Ref CloudFrontDistributionId
+        - Name: Region
+          Value: Global
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      DatapointsToAlarm: 2
+      Threshold: 1
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  # ---------------------------------------------------------------------------
+  # WAF alarm — sustained block spike usually means abuse / attack signal.
+  # ---------------------------------------------------------------------------
+  WafBlockedRequestsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-waf-blocked-spike"
+      AlarmDescription: WAF blocked > 100 requests in 5 minutes — investigate.
+      Namespace: AWS/WAFV2
+      MetricName: BlockedRequests
+      Dimensions:
+        - Name: WebACL
+          Value: !Ref WebAclName
+        - Name: Rule
+          Value: ALL
+        - Name: Region
+          Value: CloudFront
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 100
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  # ---------------------------------------------------------------------------
+  # Dashboard — single pane of glass: traffic, errors, latency, edge, security.
+  # ---------------------------------------------------------------------------
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "${AWS::StackName}"
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "text", "x": 0, "y": 0, "width": 24, "height": 2,
+              "properties": {
+                "markdown": "# islamicmaps.org — production health\n**Site** https://app.islamicmaps.org · **Search API** https://${HttpApiId}.execute-api.${AWS::Region}.amazonaws.com · Region us-east-1"
+              }
+            },
+            {
+              "type": "metric", "x": 0, "y": 2, "width": 12, "height": 6,
+              "properties": {
+                "title": "Search Lambda — invocations / errors / throttles",
+                "region": "${AWS::Region}",
+                "stat": "Sum", "period": 300, "view": "timeSeries", "stacked": false,
+                "metrics": [
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${SearchFunctionName}"],
+                  [".", "Errors", ".", ".", {"color": "#d62728"}],
+                  [".", "Throttles", ".", ".", {"color": "#ff7f0e"}]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 12, "y": 2, "width": 12, "height": 6,
+              "properties": {
+                "title": "Search Lambda — duration (avg + p95)",
+                "region": "${AWS::Region}",
+                "period": 300, "view": "timeSeries", "stacked": false,
+                "metrics": [
+                  ["AWS/Lambda", "Duration", "FunctionName", "${SearchFunctionName}", {"stat": "Average", "label": "avg"}],
+                  ["...", {"stat": "p95", "label": "p95"}],
+                  ["...", {"stat": "Maximum", "label": "max"}]
+                ],
+                "yAxis": {"left": {"label": "ms", "showUnits": false}}
+              }
+            },
+            {
+              "type": "metric", "x": 0, "y": 8, "width": 12, "height": 6,
+              "properties": {
+                "title": "API Gateway — request volume + 4xx/5xx",
+                "region": "${AWS::Region}",
+                "stat": "Sum", "period": 300, "view": "timeSeries", "stacked": false,
+                "metrics": [
+                  ["AWS/ApiGateway", "Count", "ApiId", "${HttpApiId}", {"label": "requests"}],
+                  [".", "4xx", ".", ".", {"color": "#ff7f0e"}],
+                  [".", "5xx", ".", ".", {"color": "#d62728"}]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 12, "y": 8, "width": 12, "height": 6,
+              "properties": {
+                "title": "API Gateway — integration latency",
+                "region": "${AWS::Region}",
+                "period": 300, "view": "timeSeries", "stacked": false,
+                "metrics": [
+                  ["AWS/ApiGateway", "IntegrationLatency", "ApiId", "${HttpApiId}", {"stat": "Average", "label": "avg"}],
+                  ["...", {"stat": "p95", "label": "p95"}]
+                ],
+                "yAxis": {"left": {"label": "ms", "showUnits": false}}
+              }
+            },
+            {
+              "type": "metric", "x": 0, "y": 14, "width": 12, "height": 6,
+              "properties": {
+                "title": "CloudFront — requests + bytes",
+                "region": "${AWS::Region}",
+                "stat": "Sum", "period": 300, "view": "timeSeries", "stacked": false,
+                "metrics": [
+                  ["AWS/CloudFront", "Requests", "DistributionId", "${CloudFrontDistributionId}", "Region", "Global"],
+                  [".", "BytesDownloaded", ".", ".", ".", ".", {"yAxis": "right"}]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 12, "y": 14, "width": 12, "height": 6,
+              "properties": {
+                "title": "CloudFront — error rates (%)",
+                "region": "${AWS::Region}",
+                "stat": "Average", "period": 300, "view": "timeSeries", "stacked": false,
+                "metrics": [
+                  ["AWS/CloudFront", "4xxErrorRate", "DistributionId", "${CloudFrontDistributionId}", "Region", "Global", {"color": "#ff7f0e"}],
+                  [".", "5xxErrorRate", ".", ".", ".", ".", {"color": "#d62728"}],
+                  [".", "TotalErrorRate", ".", ".", ".", ".", {"color": "#9467bd"}]
+                ],
+                "yAxis": {"left": {"label": "%", "showUnits": false}}
+              }
+            },
+            {
+              "type": "metric", "x": 0, "y": 20, "width": 12, "height": 6,
+              "properties": {
+                "title": "WAF — allowed vs blocked",
+                "region": "${AWS::Region}",
+                "stat": "Sum", "period": 300, "view": "timeSeries", "stacked": true,
+                "metrics": [
+                  ["AWS/WAFV2", "AllowedRequests", "WebACL", "${WebAclName}", "Rule", "ALL", "Region", "CloudFront"],
+                  [".", "BlockedRequests", ".", ".", ".", ".", ".", ".", {"color": "#d62728"}]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 12, "y": 20, "width": 12, "height": 6,
+              "properties": {
+                "title": "S3 — bucket sizes (daily)",
+                "region": "${AWS::Region}",
+                "stat": "Average", "period": 86400, "view": "timeSeries", "stacked": false,
+                "metrics": [
+                  ["AWS/S3", "BucketSizeBytes", "BucketName", "${SiteBucket}", "StorageType", "StandardStorage"],
+                  ["...", "${IndexBucket}", ".", "."]
+                ]
+              }
+            },
+            {
+              "type": "alarm", "x": 0, "y": 26, "width": 24, "height": 4,
+              "properties": {
+                "title": "Alarm states",
+                "alarms": [
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${AWS::StackName}-lambda-errors",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${AWS::StackName}-lambda-throttles",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${AWS::StackName}-lambda-p95-duration",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${AWS::StackName}-apigw-5xx",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${AWS::StackName}-cloudfront-5xx-rate",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${AWS::StackName}-waf-blocked-spike"
+                ]
+              }
+            }
+          ]
+        }
+
+Outputs:
+  AlarmTopicArn:
+    Description: SNS topic for alarms — subscribe with `aws sns subscribe`.
+    Value: !Ref AlarmTopic
+  DashboardUrl:
+    Description: Open this URL in the AWS console.
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${AWS::StackName}"
+  AlarmsListUrl:
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#alarmsV2:?search=${AWS::StackName}"

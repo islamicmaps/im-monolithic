@@ -1,0 +1,8 @@
+{
+  "id": "pilgrim-marker",
+  "type": "feature",
+  "label": { "en": "Pilgrim", "ar": "الحاج" },
+  "geometry": { "inline": { "type": "Point", "coordinates": [39.8266, 21.4225] } },
+  "render2d": { "shape": "circle", "color": "#c0392b", "opacity": 0.9 },
+  "themes": ["hajj"]
+}

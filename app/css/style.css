@@ -1,0 +1,94 @@
+/* islamicmaps.org — clean, map-first UI. RTL-aware via logical properties. */
+
+:root {
+  --green: #0f5132;
+  --green-2: #1f7a4d;
+  --ink: #1a1a1a;
+  --muted: #667085;
+  --panel: rgba(255, 255, 255, 0.97);
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.14);
+  --radius: 14px;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Naskh Arabic", sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; font-family: var(--font); color: var(--ink); }
+#map { position: absolute; inset: 0; }
+
+/* UI overlay: container ignores pointer events; children re-enable them. */
+#app { position: absolute; inset: 0; pointer-events: none; }
+#app > * { pointer-events: auto; }
+button, input, select { font: inherit; }
+.btn {
+  border: 1px solid #e3e6ea; background: #fff; color: var(--ink);
+  padding: 8px 12px; border-radius: 10px; cursor: pointer; box-shadow: var(--shadow);
+}
+.btn:hover { background: #f6f8fa; }
+
+/* Top bar */
+#topbar {
+  position: absolute; inset-block-start: 14px; inset-inline: 14px;
+  display: flex; align-items: center; gap: 10px;
+}
+.brand { font-weight: 700; color: var(--green); background: var(--panel);
+  padding: 8px 14px; border-radius: 12px; box-shadow: var(--shadow); }
+.spacer { flex: 1; }
+.lang { border: 1px solid #e3e6ea; border-radius: 10px; padding: 8px; box-shadow: var(--shadow); background: #fff; }
+
+/* Search panel */
+#search-panel {
+  position: absolute; inset-block-start: 66px; inset-inline-start: 14px;
+  width: min(360px, calc(100% - 28px)); background: var(--panel);
+  border-radius: var(--radius); box-shadow: var(--shadow); padding: 12px; max-height: 70vh; overflow: auto;
+}
+#search { width: 100%; padding: 11px 13px; border: 1px solid #e3e6ea; border-radius: 10px; }
+#themes { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
+.chip { border: 1px solid #d7dce1; background: #fff; border-radius: 999px; padding: 5px 11px; font-size: 13px; cursor: pointer; }
+.chip:hover { border-color: var(--green-2); color: var(--green-2); }
+#results { list-style: none; margin: 8px 0 0; padding: 0; }
+.result { padding: 10px; border-radius: 10px; cursor: pointer; }
+.result:hover { background: #eef6f1; }
+.r-title { font-weight: 600; }
+.r-sub { color: var(--muted); font-size: 13px; }
+.r-snippet { color: var(--ink); font-size: 12px; line-height: 1.45; margin-block-start: 4px; opacity: 0.85; }
+.r-badge { display: inline-block; margin-block-start: 4px; padding: 1px 7px; font-size: 11px;
+  border-radius: 999px; background: var(--green); color: #fff; }
+.empty { color: var(--muted); padding: 10px; }
+
+/* Story panel */
+#story-panel {
+  position: absolute; inset-block-start: 66px; inset-inline-end: 14px;
+  width: min(320px, calc(100% - 28px)); background: var(--panel);
+  border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px;
+}
+#story-panel h2 { margin: 0 0 6px; font-size: 18px; }
+#story-panel .desc { color: var(--muted); margin: 0 0 12px; font-size: 14px; line-height: 1.5; }
+.btn.info { background: var(--green); color: #fff; border: none; }
+
+/* Playback bar */
+#playbar {
+  position: absolute; inset-block-end: 18px; inset-inline: 50%; transform: translateX(-50%);
+  width: min(680px, calc(100% - 28px)); background: var(--panel);
+  border-radius: var(--radius); box-shadow: var(--shadow); padding: 12px 16px;
+}
+[dir="rtl"] #playbar { transform: translateX(50%); }
+.controls { display: flex; align-items: center; gap: 12px; }
+#seek { flex: 1; accent-color: var(--green-2); }
+.time { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 96px; text-align: center; }
+.speeds { display: flex; gap: 4px; }
+.speed { padding: 6px 9px; font-size: 13px; }
+#narration { margin-block-start: 10px; font-size: 14px; line-height: 1.5; min-height: 1.2em; }
+
+/* Sources modal */
+#modal { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.4); display: grid; place-items: center; }
+#modal[hidden] { display: none; }
+.modal-card { position: relative; background: #fff; border-radius: var(--radius); padding: 24px; width: min(560px, calc(100% - 40px)); max-height: 80vh; overflow: auto; box-shadow: var(--shadow); }
+.modal-card .close { position: absolute; inset-block-start: 10px; inset-inline-end: 10px; }
+.modal-body h2 { margin-top: 0; }
+.cite { color: var(--muted); font-size: 14px; }
+
+.fatal { position: absolute; inset-block-end: 10px; inset-inline-start: 10px; background: #fee; color: #900; padding: 8px 12px; border-radius: 8px; }
+
+@media (max-width: 640px) {
+  #story-panel { inset-block-start: auto; inset-block-end: 150px; inset-inline: 14px; width: auto; }
+}

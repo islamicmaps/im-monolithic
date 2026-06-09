@@ -1,0 +1,14 @@
+{
+  "id": "makkah",
+  "type": "place",
+  "names": { "en": "Mecca", "ar": "مكة المكرمة", "ur": "مکہ" },
+  "alt_names": ["Makkah", "Makkah al-Mukarramah", "Bakkah", "مكة"],
+  "kind": "city",
+  "geometry": { "type": "Point", "coordinates": [39.8262, 21.4225] },
+  "gazetteer_ids": { "wikidata": "Q5806", "geonames": "104515" },
+  "info": [
+    { "kind": "text", "body": { "en": "Birthplace of the Prophet Muhammad ﷺ and site of the Kaaba; departure point of the Hijra in 622 CE." } }
+  ],
+  "sources": ["source:sealed-nectar"],
+  "themes": ["seerah", "hajj", "holy-sites"]
+}

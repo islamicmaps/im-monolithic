@@ -1,0 +1,46 @@
+{
+  "version": "2026-06-08",
+  "updated": "2026-06-08",
+  "locales": ["en", "ar", "ur", "id", "tr", "fr"],
+  "themes": [
+    { "id": "seerah", "label": { "en": "Seerah (Life of the Prophet ﷺ)", "ar": "السيرة النبوية" }, "icon": "mosque" },
+    { "id": "hajj", "label": { "en": "Hajj & Umrah", "ar": "الحج والعمرة" }, "icon": "kaaba" },
+    { "id": "prophets", "label": { "en": "Prophets", "ar": "الأنبياء" }, "icon": "star" },
+    { "id": "caliphates", "label": { "en": "Caliphates & Conquests", "ar": "الخلافة والفتوحات" }, "icon": "flag" },
+    { "id": "scholars", "label": { "en": "Scholars & Travelers", "ar": "العلماء والرحالة" }, "icon": "book" },
+    { "id": "holy-sites", "label": { "en": "Holy Sites", "ar": "الأماكن المقدسة" }, "parent": "hajj", "icon": "landmark" },
+    { "id": "worship", "label": { "en": "Worship & Rituals", "ar": "العبادات" }, "icon": "hands" }
+  ],
+  "stories": [
+    {
+      "id": "hijra",
+      "title": { "en": "The Hijra: Mecca to Medina", "ar": "الهجرة: من مكة إلى المدينة" },
+      "subtitle": { "en": "The migration that began the Islamic calendar" },
+      "category": "historical",
+      "themes": ["seerah"],
+      "keywords": ["hijra", "hijrah", "migration", "mecca", "makkah", "medina", "madinah", "yathrib", "الهجرة", "مكة", "المدينة"],
+      "bbox": [38.5, 21.0, 40.2, 24.8],
+      "thumb": "https://cdn.islamicmaps.org/thumbs/hijra.webp",
+      "temporal_range": { "min_sort_key": 622.66, "max_sort_key": 622.71, "display": { "en": "622 CE / 1 AH" } },
+      "languages": ["en", "ar"],
+      "url": "/stories/hijra.json",
+      "byte_size": 8200,
+      "updated": "2026-06-08"
+    },
+    {
+      "id": "umrah-steps",
+      "title": { "en": "How to Perform Umrah", "ar": "كيفية أداء العمرة" },
+      "subtitle": { "en": "A step-by-step guide at the Masjid al-Haram" },
+      "category": "ritual",
+      "themes": ["hajj", "worship"],
+      "keywords": ["umrah", "umra", "tawaf", "sai", "sa'i", "ihram", "kaaba", "haram", "العمرة", "الطواف", "السعي", "الكعبة"],
+      "bbox": [39.823, 21.420, 39.831, 21.426],
+      "thumb": "https://cdn.islamicmaps.org/thumbs/umrah.webp",
+      "temporal_range": null,
+      "languages": ["en", "ar"],
+      "url": "/stories/umrah-steps.json",
+      "byte_size": 7600,
+      "updated": "2026-06-08"
+    }
+  ]
+}
