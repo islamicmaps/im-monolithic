@@ -32,7 +32,12 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production
+    # No `environment:` here. When set, GitHub builds the OIDC sub claim as
+    # `repo:OWNER/REPO:environment:NAME` instead of `:ref:refs/heads/main`,
+    # which does NOT match the cicd stack's AssumeRolePolicy. If you ever
+    # add a GitHub Environment with reviewer-approval rules, also update
+    # infra/cicd.yaml's trust policy to allow that sub form and re-deploy
+    # the cicd stack BEFORE re-adding `environment:` here.
     steps:
       - uses: actions/checkout@v4
 
