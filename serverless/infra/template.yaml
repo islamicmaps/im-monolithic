@@ -72,6 +72,14 @@ Resources:
     Properties:
       CodeUri: ../src
       Handler: search.handler.lambda_handler
+      # SnapStart on PublishedVersions cuts cold-start by 50-90% on
+      # Python 3.12 — the search Lambda's main cold-start cost is boto3
+      # import + auth-resolver setup, which the snapshot captures.
+      # AutoPublishAlias=live makes SAM publish a new version on every
+      # deploy and route the API Gateway integrations at the alias.
+      SnapStart:
+        ApplyOn: PublishedVersions
+      AutoPublishAlias: live
       Environment:
         Variables:
           INDEX_BUCKET: !Ref IndexBucket

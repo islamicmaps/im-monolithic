@@ -2,14 +2,37 @@
 
 Parses the request, validates, delegates to :func:`service.search`, and returns a
 CORS-enabled JSON response. `search_fn` is injectable for testing without AWS.
+
+SnapStart priming
+-----------------
+In the Lambda runtime (detected via `AWS_LAMBDA_FUNCTION_NAME`), we eagerly
+construct the Bedrock + S3 boto3 clients at module-load time. That cost is
+paid during the first cold start and captured in the SnapStart snapshot,
+so subsequent restored containers skip the ~200-400 ms boto3 + auth-resolver
+startup tax. Outside Lambda (local dev, the pure-core test runner that
+doesn't even have boto3 installed), the priming is skipped — the existing
+lazy-import path still works.
 """
 
 from __future__ import annotations
 
 import base64
 import json
+import os
 
-from . import config, service
+from . import config, service, store
+
+
+# Eager-import the AWS clients at module load when running inside Lambda.
+# Wrapped in try/except so a missing boto3 in any non-Lambda context (or the
+# very first prod cold start before deps are unpacked) still lets the module
+# import — the lazy paths in service._bedrock() / store._s3() take over.
+if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+    try:
+        service._bedrock()
+        store._s3()
+    except Exception:  # pragma: no cover — defensive only
+        pass
 
 
 def _resp(status: int, body=None) -> dict:

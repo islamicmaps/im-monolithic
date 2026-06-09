@@ -65,6 +65,7 @@ reversible change; each ended with a live smoke test against
 | 10 | PWA icons + missing media | Generated icon set from `docs/im_logo_small.png` via `sips` (192/512 regular + maskable, apple-touch 180, favicon 32/16, .ico). Authored 3 missing asset docs (`hijra-cover` + `umrah-cover` as inline-SVG-data-URI covers, zero S3 bytes; `talbiyah-audio` as a placeholder doc with `ext.status: "placeholder"`). **0 dangling refs left** (was 3); manifest validates, no more icon 404s. |
 | 11 | Push to public GitHub | Local repo had zero commits. Initial commit `ec13d63` → `origin/main` of `islamicmaps/im-monolithic` (public). Follow-up commit `9a82791` fixed cfn-lint failures (`arn:aws:` literals → `arn:${AWS::Partition}` in 5 templates), dropped an unused `AllowedRefs` parameter, added a pre-flight `AWS_ROLE_ARN` check to deploy.yml. **CI workflow is now green** at https://github.com/islamicmaps/im-monolithic/actions. |
 | 12 | Lighthouse audit + quick wins | Baseline mobile **81/100/100/100** (perf/a11y/bp/seo), desktop **99/100/100/100**. Quick wins applied: removed `user-scalable=no` (a11y), aria-labels on every interactive control (search input, basemap toggle, lang select, play, seek, speed, modal close), `meta description` + OpenGraph tags, `robots.txt` + `sitemap.xml`. New `scripts/audit.sh` for repeatable runs (`--mobile/--desktop/--both`, `--runs N --median` for noise reduction). Reports checked in at `docs/lighthouse/{mobile,desktop}.report.{json,html}`. |
+| 13 | Search Lambda SnapStart | `SnapStart: PublishedVersions` + `AutoPublishAlias: live` on the search function. Eager-imported boto3 + Bedrock + S3 clients in `handler.py` when `AWS_LAMBDA_FUNCTION_NAME` is set, so the snapshot captures the boto3 startup tax (~200-400 ms). Pure-core tests still skip the priming. Measured cold-start latency from CloudWatch REPORT logs: **1406 ms (init) → 594 ms (Restore) — 57% reduction.** End-user-perceived TTFB on the first hit dropped from 2.3 s → 0.77 s; warm baseline unchanged at 0.4 s. API Gateway integrations now route to the `live` alias (was `$LATEST`). |
 
 ### Live AWS state (all `us-east-1`)
 
@@ -693,7 +694,7 @@ site stack; observability; CI/CD scaffolding; GitHub push.
 4. Add a `pipeline/tests/` unit suite (the build itself is the de-facto integration test, but failure-case unit tests would harden it).
 5. A real glTF Kaaba .glb (the procedural extrude is correct geometry, but a textured glTF would be visually striking; the pipeline `models.py` is ready for it).
 6. Lighthouse / Core Web Vitals audit. The static-first hot path *should* be fast; numbers would lock the claim.
-7. SnapStart on the search Lambda (free, mitigates the only real risk in the §11 cost model: cold-start on Bedrock-backed semantic queries).
+7. ~~SnapStart on the search Lambda~~ — DONE 2026-06-09 (item 13 of §0).
 8. Real `talbiyah-audio` recording. Today the asset doc is a placeholder.
 
 **P2 — content + credibility:**

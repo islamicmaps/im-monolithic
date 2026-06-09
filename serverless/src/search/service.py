@@ -40,11 +40,22 @@ def rrf_merge(lists: list[list[dict]], limit: int, k_const: int = 60) -> list[di
 
 
 # ----------------------------- AWS-backed embed ----------------------------
+#
+# Lazy boto3 import so the pure core stays testable without AWS deps. In the
+# Lambda runtime (SnapStart enabled), the first cold start eagerly creates
+# the Bedrock client and that client is included in the snapshot, so SnapStart-
+# restored containers skip the ~200-400 ms boto3 + auth-resolver startup tax.
+
+_bedrock_client = None
+
 
 def _bedrock():
-    """Create a Bedrock Runtime client (lazy import)."""
-    import boto3
-    return boto3.client("bedrock-runtime", region_name=config.AWS_REGION)
+    """Return a process-cached Bedrock Runtime client (lazy boto3 import)."""
+    global _bedrock_client
+    if _bedrock_client is None:
+        import boto3
+        _bedrock_client = boto3.client("bedrock-runtime", region_name=config.AWS_REGION)
+    return _bedrock_client
 
 
 def embed(text: str, input_type: str = "search_query", client=None) -> list[float]:

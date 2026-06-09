@@ -170,11 +170,25 @@ def load_index(*, bucket: str | None = None, key: str | None = None,
     if not bucket:
         raise RuntimeError("INDEX_BUCKET (or INDEX_LOCAL) must be configured")
     if s3_client is None:
-        import boto3
-        s3_client = boto3.client("s3", region_name=config.AWS_REGION)
+        s3_client = _s3()
     obj = s3_client.get_object(Bucket=bucket, Key=key)
     raw = obj["Body"].read()
     return parse_index(_read_payload(raw))
+
+
+# Process-cached S3 client. Same SnapStart rationale as service._bedrock(): the
+# first import installs boto3, the first call creates the client; both are
+# captured in the SnapStart snapshot so restored containers skip the cost.
+_s3_client = None
+
+
+def _s3():
+    """Return a process-cached S3 client (lazy boto3 import)."""
+    global _s3_client
+    if _s3_client is None:
+        import boto3
+        _s3_client = boto3.client("s3", region_name=config.AWS_REGION)
+    return _s3_client
 
 
 # ---------------------------- container cache -----------------------------
