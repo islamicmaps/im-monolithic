@@ -161,12 +161,40 @@ run aws s3 sync app/ "s3://$SITE_BUCKET/" \
   --no-progress
 
 echo "==> [2/4] sync dist/ -> s3://$SITE_BUCKET/dist/  (separate --delete scope)"
+# `basemap/*` is excluded from --delete because the 89 MB hijaz.pmtiles is
+# built out-of-band (see pipeline/basemap.py — search order is env var,
+# ~/.cache/imaps/basemap-hijaz.pmtiles, /tmp/pmtiles-work/...). On a CI
+# runner that lacks the cached file, pipeline.build emits an empty dist/basemap/,
+# and a naive `--delete` would WIPE the live basemap from S3 — exactly what
+# happened on 2026-06-09 19:51 UTC. The exclude makes the live basemap
+# resilient to dev-machine vs CI environment drift; basemap updates are now
+# always uploaded directly with `aws s3 cp` (or via this sync if dist/basemap
+# IS populated). Same logic for the search index: dist/search/index.json is
+# the offline lexical index which is build-time generated, but the search
+# Lambda's index.json.gz lives in a SEPARATE bucket so this scope isn't
+# at risk for it.
 run aws s3 sync dist/ "s3://$SITE_BUCKET/dist/" \
   --region "$AWS_REGION" \
   --delete \
   --exclude "*.gz" --exclude "*.br" --exclude ".DS_Store" --exclude "*.DS_Store" \
+  --exclude "basemap/*" \
   --cache-control "public, max-age=86400, stale-while-revalidate=604800" \
   --no-progress
+
+# Basemap upload — separate from the sync because we WANT it to no-op when
+# the source file is missing (rather than wipe the live basemap). When the
+# local basemap exists (dev machine), this uploads it; when it doesn't (CI),
+# this prints a single line and moves on, preserving whatever's already on S3.
+if [[ -f dist/basemap/hijaz.pmtiles ]]; then
+  echo "==> [2b/4] upload dist/basemap/hijaz.pmtiles ($(du -h dist/basemap/hijaz.pmtiles | awk '{print $1}'))"
+  run aws s3 cp dist/basemap/hijaz.pmtiles "s3://$SITE_BUCKET/dist/basemap/hijaz.pmtiles" \
+    --region "$AWS_REGION" \
+    --content-type "application/vnd.pmtiles" \
+    --cache-control "public, max-age=2592000" \
+    --no-progress
+else
+  echo "==> [2b/4] no local dist/basemap/hijaz.pmtiles — leaving the live basemap in place"
+fi
 
 # Per-file overrides for content-type + cache-control where the bulk values are wrong.
 override() {  # key  content-type  cache-control
