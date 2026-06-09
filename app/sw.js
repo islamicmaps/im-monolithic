@@ -6,7 +6,14 @@
  * This is the PWA half of the low/no-bandwidth requirement.
  */
 
-const SHELL = "imaps-shell-v5";
+// SHELL is content-hashed at deploy time by scripts/deploy.sh — the literal
+// string `__SHELL_HASH__` is replaced with a hex digest of every file in
+// SHELL_ASSETS before the SW is uploaded to S3. That means every deploy
+// where ANY shell asset changes produces a new SHELL value, which triggers
+// the SW's `install` → `addAll(SHELL_ASSETS)` refresh path automatically.
+// Local dev (where the sentinel is never substituted) gets a stable value
+// so the SW behaves predictably under `python3 -m http.server`.
+const SHELL = "imaps-shell-__SHELL_HASH__";
 const DATA = "imaps-data-v1";
 
 const SHELL_ASSETS = [

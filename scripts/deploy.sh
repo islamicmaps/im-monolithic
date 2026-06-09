@@ -16,6 +16,7 @@
 # Flags:
 #   --skip-build      Skip `python3 -m pipeline.build` (use existing dist/)
 #   --skip-reindex    Skip the search-index rebuild + S3 upload
+#   --force-reindex   Reindex even when the source hash matches (overrides skip)
 #   --skip-invalidate Skip CloudFront invalidation
 #   --dry-run         Print planned commands, do not execute
 
@@ -24,6 +25,7 @@ set -euo pipefail
 # ------------------------------------------------------------------ args
 SKIP_BUILD=0
 SKIP_REINDEX=0
+FORCE_REINDEX=0
 SKIP_INVALIDATE=0
 REBUILD_VENDOR=0
 DRY_RUN=0
@@ -31,6 +33,7 @@ for a in "$@"; do
   case "$a" in
     --skip-build)      SKIP_BUILD=1 ;;
     --skip-reindex)    SKIP_REINDEX=1 ;;
+    --force-reindex)   FORCE_REINDEX=1 ;;
     --skip-invalidate) SKIP_INVALIDATE=1 ;;
     --rebuild-vendor)  REBUILD_VENDOR=1 ;;
     --dry-run)         DRY_RUN=1 ;;
@@ -89,6 +92,59 @@ if [[ $REBUILD_VENDOR -eq 1 ]]; then
   else
     echo "+ ( cd .vendor-build && [npm install if needed] && node build.mjs )"
   fi
+fi
+
+# ------------------------------------------------------------------ 1c) stamp SW
+#
+# Service-worker cache invalidation is the only thing standing between a deploy
+# and existing visitors actually picking it up. `app/sw.js`'s SHELL constant
+# carries a `__SHELL_HASH__` sentinel that we replace IN-PLACE with a digest
+# of every file the SW caches (SHELL_ASSETS in sw.js). When any of those files
+# changes, the digest changes, the SW notices a new SHELL on next page load,
+# and runs `install` → `addAll(SHELL_ASSETS)` to refresh the cache.
+#
+# The substitution is reversed by an EXIT trap so the working tree stays
+# clean even if a later step fails or you Ctrl-C.
+SW_FILE="app/sw.js"
+SW_BACKUP=""
+
+restore_sw() {
+  if [[ -n "$SW_BACKUP" && -f "$SW_BACKUP" ]]; then
+    mv -f "$SW_BACKUP" "$SW_FILE"
+    SW_BACKUP=""
+  fi
+}
+trap restore_sw EXIT
+
+compute_shell_hash() {  # echoes 12-char hex digest
+  # MUST match SHELL_ASSETS in app/sw.js. Sort for cross-machine determinism.
+  {
+    LC_ALL=C shasum -a 256 \
+      app/index.html \
+      app/manifest.webmanifest \
+      app/css/style.css \
+      app/js/main.js app/js/map.js app/js/layers.js app/js/ui.js \
+      app/js/playback.js app/js/search.js app/js/searchApi.js \
+      app/js/data.js app/js/i18n.js app/js/arabic.js app/js/config.js \
+      app/vendor/maplibre-gl.css app/vendor/maplibre-gl.mjs \
+      app/vendor/deck.gl.mjs app/vendor/pmtiles.mjs \
+      app/vendor/basemap-style.json 2>/dev/null
+  } | shasum -a 256 | awk '{print substr($1,1,12)}'
+}
+
+if [[ $DRY_RUN -eq 1 ]]; then
+  echo "+ stamp $SW_FILE: replace __SHELL_HASH__ with computed digest"
+else
+  if ! grep -q "__SHELL_HASH__" "$SW_FILE"; then
+    echo "ERROR: $SW_FILE has no __SHELL_HASH__ sentinel — was it already substituted? Check git status." >&2
+    exit 1
+  fi
+  SHELL_HASH="$(compute_shell_hash)"
+  SW_BACKUP="${SW_FILE}.deploy.bak"
+  cp -f "$SW_FILE" "$SW_BACKUP"
+  # In-place sed; portable form for both BSD (macOS) and GNU sed.
+  sed "s/__SHELL_HASH__/${SHELL_HASH}/g" "$SW_BACKUP" > "$SW_FILE"
+  echo "==> [1c/4] stamped $SW_FILE: SHELL=imaps-shell-${SHELL_HASH}"
 fi
 
 # ------------------------------------------------------------------ 2) sync site
@@ -154,18 +210,86 @@ override "robots.txt"                             "text/plain; charset=utf-8"  "
 override "sitemap.xml"                            "application/xml; charset=utf-8"  "public, max-age=86400"
 
 # ------------------------------------------------------------------ 3) re-index search
-if [[ $SKIP_REINDEX -eq 0 ]]; then
-  echo "==> [3/4] rebuild + upload search index -> s3://$INDEX_BUCKET/"
-  run env \
-    INDEX_BUCKET="$INDEX_BUCKET" \
-    INDEX_KEY="search-index.json.gz" \
-    EMBED_MODEL="cohere.embed-multilingual-v3" \
-    EMBED_DIM=1024 \
-    AWS_REGION="$AWS_REGION" \
-    PYTHONPATH=serverless/src \
-    python3 -m search.indexer --dist dist
+#
+# Idempotency: the indexer re-embeds every doc through Bedrock on every run.
+# At 30 docs that's pennies; at 1000 it's not, and every push-to-main re-runs
+# this. Skip the loop when nothing that affects the embedding has changed.
+#
+# The hash covers:
+#   - every doc the indexer reads (catalog + story bundles)
+#   - the Python that produces the embedding input (indexer/text/service)
+#   - the embed model id + dim (changing model = corpus must re-embed)
+# Sentinel: s3://INDEX_BUCKET/.last-source-hash. If it matches AND the index
+# artifact itself exists, skip. Override with --force-reindex.
+EMBED_MODEL="${EMBED_MODEL:-cohere.embed-multilingual-v3}"
+EMBED_DIM="${EMBED_DIM:-1024}"
+INDEX_KEY="${INDEX_KEY:-search-index.json.gz}"
+HASH_KEY=".last-source-hash"
+
+compute_source_hash() {  # echoes hex digest
+  {
+    printf 'model=%s\ndim=%s\n' "$EMBED_MODEL" "$EMBED_DIM"
+    # sort keeps the digest stable across machines / locales
+    find dist/catalog.json dist/stories -type f -name '*.json' 2>/dev/null \
+      | LC_ALL=C sort \
+      | xargs shasum -a 256 2>/dev/null
+    LC_ALL=C shasum -a 256 \
+      serverless/src/search/indexer.py \
+      serverless/src/search/text.py \
+      serverless/src/search/service.py 2>/dev/null
+  } | shasum -a 256 | awk '{print $1}'
+}
+
+if [[ $SKIP_REINDEX -eq 1 ]]; then
+  echo "==> [3/4] skip search reindex (--skip-reindex)"
+elif [[ $DRY_RUN -eq 1 ]]; then
+  echo "+ compute source hash; compare to s3://$INDEX_BUCKET/$HASH_KEY; reindex iff changed"
 else
-  echo "==> [3/4] skip search reindex"
+  CURRENT_HASH="$(compute_source_hash)"
+  REMOTE_HASH=""
+  if aws s3api head-object --bucket "$INDEX_BUCKET" --key "$HASH_KEY" \
+       --region "$AWS_REGION" >/dev/null 2>&1; then
+    REMOTE_HASH="$(aws s3 cp "s3://$INDEX_BUCKET/$HASH_KEY" - --region "$AWS_REGION" 2>/dev/null \
+                   | tr -d '[:space:]')"
+  fi
+  ARTIFACT_PRESENT=0
+  if aws s3api head-object --bucket "$INDEX_BUCKET" --key "$INDEX_KEY" \
+       --region "$AWS_REGION" >/dev/null 2>&1; then
+    ARTIFACT_PRESENT=1
+  fi
+
+  if [[ $FORCE_REINDEX -eq 0 \
+        && "$CURRENT_HASH" = "$REMOTE_HASH" \
+        && $ARTIFACT_PRESENT -eq 1 ]]; then
+    echo "==> [3/4] skip reindex — source hash unchanged (${CURRENT_HASH:0:12}…)"
+  else
+    if [[ $FORCE_REINDEX -eq 1 ]]; then
+      reason="--force-reindex"
+    elif [[ $ARTIFACT_PRESENT -eq 0 ]]; then
+      reason="index artifact missing"
+    elif [[ -z "$REMOTE_HASH" ]]; then
+      reason="no prior hash on s3"
+    else
+      reason="hash drift (${REMOTE_HASH:0:12}… → ${CURRENT_HASH:0:12}…)"
+    fi
+    echo "==> [3/4] rebuild + upload search index -> s3://$INDEX_BUCKET/  [$reason]"
+    env \
+      INDEX_BUCKET="$INDEX_BUCKET" \
+      INDEX_KEY="$INDEX_KEY" \
+      EMBED_MODEL="$EMBED_MODEL" \
+      EMBED_DIM="$EMBED_DIM" \
+      AWS_REGION="$AWS_REGION" \
+      PYTHONPATH=serverless/src \
+      python3 -m search.indexer --dist dist
+    # Persist the hash AFTER a successful reindex. Lose-the-write means we
+    # reindex once next time — strictly safer than skipping a real diff.
+    printf '%s\n' "$CURRENT_HASH" \
+      | aws s3 cp - "s3://$INDEX_BUCKET/$HASH_KEY" \
+          --region "$AWS_REGION" \
+          --content-type "text/plain" \
+          --cache-control "no-cache" \
+          --no-progress
+  fi
 fi
 
 # ------------------------------------------------------------------ 4) invalidate CF
