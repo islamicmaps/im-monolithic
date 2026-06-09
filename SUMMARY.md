@@ -11,22 +11,22 @@ bandwidth, extendable to native iOS/Android with zero backend change.
 
 ## Status
 
-Design + tooling phase. The **content schema** (the platform-agnostic keystone) is
-defined and exemplified end-to-end for the two MVP stories, and the **build pipeline**
-runs green: it validates content, compiles self-contained story bundles + an offline
-Arabic-normalized search index + GeoJSON geometry + a 3D manifest, and emits each
-artifact plain + gzip + brotli (~67% smaller over the wire on the MVP set). The
-**web client** scaffold (MapLibre + deck.gl, zero-build PWA) consumes those artifacts;
-its render-agnostic core (search, playback, i18n, Arabic normalization) passes 30 Node
-tests against the real `dist/`, and a **headless Chrome smoke test (2026-06-08) drives
-the whole app end-to-end** — module graph loads, MapLibre + deck.gl render, search →
-story → Play animates the Hijra route (PathLayer progressive draw + ScatterplotLayer
-moving marker), and the Arabic locale flips RTL correctly. The **deep/semantic search
-API** (serverless) is built — its pure core (query build, hybrid RRF, multilingual
-extraction, HTTP handler) passes 27 tests and the SAM template validates; deploy +
-content indexing remain. **Vector-store decision (2026-06-08):** S3 +
-in-memory-vector Lambda (not OpenSearch Serverless) — same pure core, near-zero
-idle cost; implementation is now the top P1.
+**Live MVP at https://app.islamicmaps.org** (deployed 2026-06-09). Source at
+https://github.com/islamicmaps/im-monolithic. Four CloudFormation stacks in
+`us-east-1`: search Lambda (`islamicmaps-search`), static site
+(`islamicmaps-app`), observability (`islamicmaps-observability`), CI/CD
+(`islamicmaps-cicd`). 78 pure-core tests pass; CI workflow is green.
+
+Working features today:
+- **Static-first hot path** — S3 + CloudFront + WAF + ACM + Route53; brotli auto-compression; HTTP/2+H/3.
+- **Self-hosted** MapLibre + deck.gl + pmtiles + Protomaps style (zero third-party CDN runtime deps).
+- **Real Protomaps PMTiles vector basemap** (Hijaz region z0-14, 89 MB, range-fetched).
+- **Bedrock-powered semantic search** via `/v1/search` (Cohere multilingual, hybrid RRF), wired to the offline lexical index with parallel merge.
+- **deck.gl story playback** — Hijra route animation (PathLayer + ScatterplotLayer); procedural 3D Kaaba (PolygonLayer extrude) at the tawaf step.
+- **Observability** — CloudWatch dashboard + 6 alarms + SNS topic.
+- **CI/CD** — GitHub Actions OIDC + scoped deploy IAM role; `scripts/deploy.sh` for local + CI use.
+
+See `HANDOFF.md` §0 for the per-item story of what shipped 2026-06-09.
 
 ## Decisions locked
 
@@ -53,32 +53,21 @@ Built for scale: the MVP implements a subset; the schema/architecture foreclose 
 
 ## Layout
 
-- `schema/` — JSON Schema (draft 2020-12) for all content types + `README.md`
-  (also the AI authoring guide). See `CODEBASE_MAP.md`.
-- `examples/` — worked, internally-consistent instances for both MVP stories
-  (also the pipeline's default input set).
-- `docs/` — `architecture.{dot,png,svg}`: the AWS architecture (static-first hot path,
-  serverless online-only deep search, offline build pipeline). See `CODEBASE_MAP.md`.
-- `pipeline/` — Python build pipeline (`python3 -m pipeline.build`): validate → compile
-  → `dist/`. See `pipeline/README.md` (incl. the client consumption contract).
-- `dist/` — build output (gitignored): catalog, story bundles, search index, geometry,
-  manifests; each plain + gzip + brotli.
-- `app/` — web client (zero-build ESM PWA: MapLibre + deck.gl). Pure logic Node-tested;
-  serve repo root, open `/app/`. See `app/README.md`.
-- `serverless/` — deep/semantic search API (HTTP API + Lambda + OpenSearch + Bedrock).
-  Pure core Python-tested; SAM template validated. See `serverless/README.md`.
+- `schema/` — JSON Schema (draft 2020-12) for all content types. See `CODEBASE_MAP.md`.
+- `examples/` — 18 worked, internally-consistent instances for both MVP stories.
+- `docs/` — `architecture.{dot,png,svg}` + smoke-test screenshots.
+- `pipeline/` — Python build pipeline (`python3 -m pipeline.build`).
+- `dist/` — build output (gitignored).
+- `app/` — web client (zero-build ESM PWA: MapLibre + deck.gl + pmtiles + Protomaps style). Pure logic Node-tested; vendored bundles in `app/vendor/`.
+- `.vendor-build/` — build-time esbuild glue that produces `app/vendor/*.mjs`. Not a runtime path.
+- `serverless/` — deep/semantic search API (HTTP API + Lambda + S3-hosted vector index + Bedrock embeddings).
+- `infra/` — CloudFormation: `site.yaml` (S3+CF+WAF+ACM+R53), `observability.yaml` (dashboard+alarms+SNS), `cicd.yaml` (OIDC + deploy role).
+- `scripts/` — `deploy.sh` (idempotent end-to-end deploy).
+- `.github/workflows/` — `ci.yml` (PR validation), `deploy.yml` (push-to-main auto-deploy via OIDC).
 
 ## Open / next
 
-- **Top P1: build the S3 + in-memory-vector Lambda search backend** (vector-store
-  decision is locked; reuses the existing `service` / `text` / `handler`).
-- Replace scaffold shortcuts: self-host maplibre/deck (off CDN), swap demo basemap
-  for a Protomaps PMTiles style, add PWA icons, wire the glTF loader for real
-  `.glb` models, fix the multi-fire search-index fetch race in `main.js` (cache
-  the promise, not the result).
-- Owner / on-device smoke test (real GPU / Safari / mobile / PWA-offline / EOX
-  satellite toggle) — the headless smoke covered the module + UI + playback layer
-  but not the real-device surface.
-- CI when git is initialized: PMTiles + GLB optimization (gltf-transform; GDAL ≥ 3.8
-  is already on the dev machine).
-- Scholar review workflow + more content (point AI authoring at the schema).
+See `HANDOFF.md` §14 for the prioritized list. Most-pressing:
+1. Set the GitHub repo variable `AWS_ROLE_ARN` so deploys auto-fire on push to main.
+2. Subscribe an email to the SNS alarm topic.
+3. Real-device smoke (iPhone/Android/PWA-offline).

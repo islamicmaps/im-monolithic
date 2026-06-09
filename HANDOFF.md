@@ -7,17 +7,23 @@
 > `CODEBASE_MAP.md` (file-by-file), then the per-component READMEs (`schema/README.md`,
 > `pipeline/README.md`, `app/README.md`, `serverless/README.md`).
 
-**Last updated:** 2026-06-08
-**Status:** Foundations complete (schema, build pipeline, web-client scaffold, search
-API) with all *pure logic* tested **and a passing headless-Chrome smoke test of the
-client end-to-end** (map renders, search→story→play animates the Hijra route, Arabic
-RTL flips). Two import/CSS bugs found and fixed during the smoke test (§7). Nothing
-deployed to AWS yet; AWS deploy and on-device performance/PWA-offline are still
-unverified. See §6–§8.
+**Last updated:** 2026-06-09
+**Status:** **Live MVP at https://app.islamicmaps.org.** Four CloudFormation
+stacks deployed in `us-east-1` (search Lambda, static site, observability,
+CI/CD); 78 pure-core tests pass; every "scalable functionality" claim has a
+matching live verification (PMTiles range-fetched, Bedrock semantic search,
+animated story playback, procedural 3D Kaaba, observability dashboard,
+GitHub Actions CI green). Source at https://github.com/islamicmaps/im-monolithic
+(public). See §0 for what changed since 2026-06-08, §6 for what's live now.
+
+> Owner action still pending: set repo variable `AWS_ROLE_ARN` to
+> `arn:aws:iam::803129122420:role/islamicmaps-cicd-github-deploy` so the
+> deploy workflow can OIDC-assume on push-to-main. CI workflow is already green.
 
 ---
 
 ## Table of contents
+0. [What changed in the 2026-06-09 deploy session](#0-what-changed-in-the-2026-06-09-deploy-session)
 1. [What we are building](#1-what-we-are-building)
 2. [Positioning / competitors / the gap](#2-positioning--competitors--the-gap)
 3. [Locked decisions and the reasoning behind them](#3-locked-decisions-and-the-reasoning-behind-them)
@@ -35,6 +41,61 @@ unverified. See §6–§8.
 15. [Killer-feature backlog (product)](#15-killer-feature-backlog-product)
 16. [Working conventions (must follow)](#16-working-conventions-must-follow)
 17. [Glossary (domain + technical)](#17-glossary-domain--technical)
+
+---
+
+## 0. What changed in the 2026-06-09 deploy session
+
+The 2026-06-08 brief said "Nothing deployed to AWS yet." This session put it
+all on AWS. Eleven items shipped, in order. Each one is a self-contained,
+reversible change; each ended with a live smoke test against
+`app.islamicmaps.org` or the deployed `/v1/search` endpoint.
+
+| # | Item | Lasting artifact / live state |
+|---|---|---|
+| 1 | Deploy search Lambda | CFN stack `islamicmaps-search`. Fixed a latent bug in `serverless/infra/template.yaml` (transform was `2016-10-09`, invalid → `2016-10-31`). Bedrock embeddings via `cohere.embed-multilingual-v3`. Live API at `https://klc37q0kng.execute-api.us-east-1.amazonaws.com`, `/v1/health` 200, all four `mode=` values (lexical/semantic/hybrid + Arabic) returning correct ranked hits. |
+| 2 | Static site stack | CFN stack `islamicmaps-app` — `infra/site.yaml`. S3 (private, OAC, versioned) + CloudFront (HTTP/2+H/3, brotli auto-compression, SPA fallback) + WAFv2 (Common Rule Set + IP reputation + per-IP rate limit) + ACM (DNS-validated) + Route53 A/AAAA aliases. Live at `https://app.islamicmaps.org`. |
+| 3 | Wire frontend → `/v1/search` | New `app/js/searchApi.js` (pure, fetch-injectable). `main.js` runs offline+online searches in parallel, aborts in-flight on each keystroke. UI shows ★ semantic / ★ semantic+lexical badges + snippet. CORS tightened: `AllowedOrigin=https://app.islamicmaps.org`. 14 new Node tests; the "search-index race" flagged in §10 is fixed (caches the *promise*, not the result). |
+| 4 | Observability | CFN stack `islamicmaps-observability` — `infra/observability.yaml`. CloudWatch dashboard + 6 alarms (Lambda errors / throttles / p95 duration; API GW 5xx; CloudFront 5xx-rate; WAF blocked spike) + SNS topic. **Subscribe an email to the SNS topic to get paged.** |
+| 5 | CI/CD foundation | CFN stack `islamicmaps-cicd` — `infra/cicd.yaml`. GitHub OIDC provider + scoped deploy IAM role (`arn:aws:iam::803129122420:role/islamicmaps-cicd-github-deploy`). `.github/workflows/{ci,deploy}.yml`. New `scripts/deploy.sh` — idempotent, separate `--delete` scopes for `app/` and `dist/` syncs (fixes a foot-gun where `--delete` wiped `/dist/*`), discovers stack outputs at runtime. |
+| 6 | Self-host frontend libs | `.vendor-build/` (esbuild) → `app/vendor/{maplibre-gl,deck.gl,pmtiles}.mjs` + `maplibre-gl.css`. Zero third-party CDN runtime deps; the "free forever, low-bandwidth" claim is now actually true. ~617 KB brotli total over the wire. |
+| 7 | Real Protomaps PMTiles basemap | Replaced the MapLibre demo style with a Protomaps light theme over a Hijaz-region PMTiles file (89 MB, z0–14, extracted from `build.protomaps.com` daily planet via `pmtiles extract --bbox 36,18,44,28 --maxzoom 14`). New `pipeline/basemap.py` step copies the cached file into `dist/basemap/` on each build. Live: 26+ HTTP 206 Range requests fetching tiles, valid `accept-ranges: bytes`. |
+| 8 | Fix deck.gl shader-link error | Combined the deck.gl + @deck.gl/mapbox bundles into one (was producing two `@deck.gl/core` copies → DECKGL_FILTER_* macros undefined → vertex-shader-not-compiled). Story playback now actually animates on a real GPU. |
+| 9 | 3D Kaaba via polygon extrusion | `examples/feature.kaaba-volume.json` — atemporal Polygon with `render3d.extrude { height_m: 13.1 }`. New extrude branch in `app/js/layers.js` (PolygonLayer with `extruded: true`). +3 KB to the bundle. Zero asset weight; the cuboid renders correctly at the real GPS coords. Tawaf step camera tightened to z19/pitch 70/bearing 30 so the 3D-ness is obvious. |
+| 10 | PWA icons + missing media | Generated icon set from `docs/im_logo_small.png` via `sips` (192/512 regular + maskable, apple-touch 180, favicon 32/16, .ico). Authored 3 missing asset docs (`hijra-cover` + `umrah-cover` as inline-SVG-data-URI covers, zero S3 bytes; `talbiyah-audio` as a placeholder doc with `ext.status: "placeholder"`). **0 dangling refs left** (was 3); manifest validates, no more icon 404s. |
+| 11 | Push to public GitHub | Local repo had zero commits. Initial commit `ec13d63` → `origin/main` of `islamicmaps/im-monolithic` (public). Follow-up commit `9a82791` fixed cfn-lint failures (`arn:aws:` literals → `arn:${AWS::Partition}` in 5 templates), dropped an unused `AllowedRefs` parameter, added a pre-flight `AWS_ROLE_ARN` check to deploy.yml. **CI workflow is now green** at https://github.com/islamicmaps/im-monolithic/actions. |
+
+### Live AWS state (all `us-east-1`)
+
+| Resource | Value |
+|---|---|
+| Site origin bucket | `s3://app.islamicmaps.org` (private, OAC) |
+| CloudFront distribution | `E229ILRSBM7I4J` |
+| Search API | `https://klc37q0kng.execute-api.us-east-1.amazonaws.com` |
+| Search Lambda | `islamicmaps-search-SearchFunction-jJJwPsk2NAnK` (arm64, 1 GB, Python 3.12) |
+| Search index bucket | `s3://islamicmaps-search-indexbucket-cwvzx7msvv1a` |
+| WAF WebACL | `islamicmaps-app-cf-acl` (CLOUDFRONT scope) |
+| Hosted zone | `islamicmaps.org.` (`Z00115081OG6U8JV61C2I`) |
+| ACM cert | DNS-validated, auto-renewing |
+| SNS alarm topic | `arn:aws:sns:us-east-1:803129122420:islamicmaps-observability-alarms` (no subscribers yet) |
+| Dashboard | `https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#dashboards:name=islamicmaps-observability` |
+| Deploy IAM role | `arn:aws:iam::803129122420:role/islamicmaps-cicd-github-deploy` |
+
+### Untouched
+
+- The **legacy 2020 `s3://islamicmaps.org` bucket** (a previous static site) was deliberately left alone. The MVP runs on the new `app.islamicmaps.org` subdomain.
+- The apex `islamicmaps.org` and `www.` Route 53 records were not modified.
+
+### Things to verify when you next sit down
+
+1. Set the GitHub repo variable `AWS_ROLE_ARN` (only manual step left to make
+   push-to-main auto-deploy).
+2. Subscribe an email to the SNS alarm topic (otherwise alarms fire silently).
+3. Real-device smoke (real iPhone Safari, real Android Chrome, PWA-install,
+   offline mode after install) — none of this session's smokes used a real
+   touchscreen.
+4. Scholar review of the two MVP stories. Especially the procedure of Umrah
+   and the framing of Hijri↔Gregorian dates.
 
 ---
 
@@ -409,37 +470,36 @@ headless-browser smoke pass.**
 
 ## 8. What is NOT tested / unverified
 
-Be honest about this with the owner; it's the real remaining risk.
+Most of the 2026-06-08 list has been verified — see §0. What remains:
 
-- **Still unverified in a browser, even after the headless smoke pass:**
-  - **Real-GPU WebGL on a user device** — the smoke test ran with software WebGL
-    (`--use-angle=swiftshader --enable-unsafe-swiftshader`); shader compilation +
-    real-driver behavior on a real GPU is implied but not proven. Owner / user
-    smoke on Chrome + Safari + Firefox + a phone is still the high-value test.
-  - **3D ScenegraphLayer with a real `.glb`.** No real glTF asset exists yet (§10);
-    the smoke test only exercised 2D PathLayer + ScatterplotLayer. `ScenegraphLayer`
-    code path needs verification once a real model + the glTF loader registration
-    land.
-  - **Satellite raster overlay** — the smoke test didn't toggle to satellite, so EOX
-    Sentinel-2 tile loading is still unconfirmed.
-  - **Service worker / PWA offline** — registration runs, but the offline-cache
-    behavior wasn't exercised (would need a second-load with the network cut).
-  - **Camera `flyTo`** — the per-step `flyTo` is wired but visually noisy under
-    swiftshader; not visually validated.
-- **AWS — nothing deployed.** Bedrock embedding calls, OpenSearch Serverless collection
-  creation + kNN, the IAM + data-access-policy principal wiring, the indexer bulk load,
-  API Gateway routing + CORS in practice. Template only structurally validated (NOT
-  `sam validate` / `cfn-lint` / `sam deploy`).
-- **PMTiles generation** — dev GDAL lacked the PMTiles driver, so `geometry.to_pmtiles`
-  has never produced a real `.pmtiles`. (MVP geometry is tiny + inlined, so non-blocking.)
-- **3D / GLB optimization** — `gltf-transform` absent + no local meshes; the models
-  step is metadata-only. Real model authoring/optimization untried.
-- **`publish.py`** — dry-run only; no real S3 sync / CloudFront invalidation.
-- **Service worker / PWA offline** — not exercised in a browser.
-- **Performance / low-bandwidth on real devices/networks**, accessibility,
-  cross-browser, mobile — untested.
-- **Search quality at scale** — current client search is exact + prefix only (no fuzzy/
-  typo tolerance); semantic search needs a deployed backend to evaluate.
+- **Real iPhone Safari / Android Chrome / real-touchscreen smoke** — every
+  browser smoke this session ran in headless or windowed Chrome on macOS
+  (Apple Silicon). A real phone (cellular network, finger taps, install-as-PWA)
+  hasn't seen the live site.
+- **PWA offline** — service worker registers and shell-caches everything, but
+  the offline experience hasn't been exercised end-to-end (needs a second load
+  with the network cut).
+- **Satellite raster toggle** — the EOX Sentinel-2 path is wired but the
+  toggle wasn't clicked in any smoke; tile loading + attribution display
+  unconfirmed.
+- **3D `ScenegraphLayer` with a real `.glb`** — the procedural extrude branch
+  (item 9 of §0) covers the Kaaba; a real glTF model + Draco/KTX2 + the glTF
+  loader registration is still untried (the metadata path in `pipeline/models.py`
+  exists, but no binary produced).
+- **GitHub Actions deploy workflow** — the CI workflow is green; the deploy
+  workflow has only been exercised up to the OIDC pre-flight (which fails
+  cleanly because `AWS_ROLE_ARN` isn't set yet). End-to-end push-to-main →
+  auto-deploy hasn't fired once.
+- **Lighthouse / Core Web Vitals** — no formal performance audit. The live
+  site loads ~617 KB brotli of JS/CSS + the basemap is range-fetched, but no
+  numbers exist for LCP / TBT / CLS or PWA-installability score.
+- **Search quality at scale** — corpus is 2 stories. Hybrid RRF tuning, kNN
+  ranking sanity, and search-relevance evaluation will need real content to
+  judge.
+- **3D / GLB optimization** — `gltf-transform` still absent; if a real .glb
+  ever lands, the Draco/KTX2 step in the pipeline is untried.
+- **`pipeline/publish.py`** — superseded by `scripts/deploy.sh`; left in the
+  repo as historical reference but not the path anyone should call now.
 
 ---
 
@@ -483,33 +543,19 @@ reader pass, keyboard nav, large-catalog search latency.
 
 ## 10. Known shortcuts, scaffolding & tech debt
 
-- **CDN ESM** (esm.sh) in `app/index.html` → for production **self-host** maplibre-gl +
-  deck.gl on S3 (no third-party runtime dependency, better offline).
-- **Demo basemap style** (`app/js/config.js` → `BASEMAP.vectorStyle` = MapLibre demo)
-  → replace with the **PMTiles** vector style.
-- **3D model URLs** point at `cdn.islamicmaps.org` **placeholders**; no real `.glb`
-  exists yet. `ScenegraphLayer` will also need the glTF loader registered.
-- **PWA icons** (`app/icons/icon-{192,512}.png`) referenced in the manifest but **not
-  created**.
-- **Dangling media refs** (intentional, flagged as warnings by the pipeline):
-  `asset:hijra-cover`, `asset:umrah-cover`, `asset:talbiyah-audio` — produce these media
-  (or drop the refs).
-- **Client search** is exact + prefix only; no fuzzy/typo tolerance (consider Orama/
-  FlexSearch client lib, or rely on the serverless path for deep queries).
-- **Search-index race in `app/js/main.js`** — `onSearch` does
-  `if (!app.searchIndex) app.searchIndex = await loadSearchIndex();`. While the first
-  fetch is in flight, every additional keystroke also sees `searchIndex === null` and
-  fires its own fetch. Smoke test observed **5 simultaneous fetches** of
-  `/dist/search/index.json` while typing "hijra" — they all return the same data so
-  it's correct, just wasteful. Fix: cache the *promise* not the result
-  (`app.searchIndex ||= loadSearchIndex()` and `await app.searchIndex` in callers).
-- **`#modal[hidden]` CSS guard** (added 2026-06-08) — `#modal` uses `display: grid`
-  to center its card, which silently overrode the HTML `hidden` attribute. The
-  explicit `#modal[hidden] { display: none; }` rule fixes it; if anyone else adds a
-  `display: ...` rule to a hidden-by-default element later, do the same.
-- **`app/js/arabic.js` must stay in sync with `pipeline/arabic.py`** — same
-  normalization, or queries won't match index tokens. (Both currently aligned + tested.)
-- **OpenSearch Serverless cost** — see §11.
+**Resolved in 2026-06-09 (see §0):**
+- ~~CDN ESM via esm.sh~~ — vendor bundles via esbuild → `app/vendor/*.mjs`. Zero third-party CDN runtime deps.
+- ~~Demo basemap style~~ — Protomaps `light` theme over a Hijaz PMTiles file.
+- ~~PWA icons missing~~ — generated from `docs/im_logo_small.png` via `sips` (192/512 regular + maskable, apple-touch, favicon).
+- ~~Dangling media refs (`hijra-cover`, `umrah-cover`, `talbiyah-audio`)~~ — authored as inline-SVG-data-URI covers + a placeholder audio doc. Pipeline reports 0 dangling refs.
+- ~~Search-index race in `app/js/main.js`~~ — caches the promise, not the result; in-flight requests aborted on each keystroke.
+- ~~`#modal[hidden]` CSS guard~~ — still in place from 2026-06-08.
+- ~~OpenSearch Serverless cost~~ — see §11; the S3 + in-memory-vector Lambda backend is live.
+
+**Still active:**
+- **3D ScenegraphLayer with a real `.glb`.** The procedural extrude branch (the live Kaaba) covers the immediate need, but a real glTF model + glTF loader registration is untried. The model3d schema fields are ready.
+- **Client search is exact + prefix only**; no fuzzy/typo tolerance. Mitigated by the deployed semantic backend, which catches near-misses.
+- **`app/js/arabic.js` must stay in sync with `pipeline/arabic.py`** — same normalization, or queries won't match index tokens. Both currently aligned + tested.
 - **`AWS_REGION`** is provided by Lambda at runtime; the indexer reads `config.AWS_REGION`
   (default us-east-1) — set env appropriately when running locally.
 
@@ -567,69 +613,81 @@ tippecanoe for PMTiles; Node + `@gltf-transform/cli` for 3D optimization. The pi
 ## 13. How to run everything
 
 ```bash
-# from the repo root: /net/satvol001/innovation/USERS/Zia/code/notebook/mapsorg
+# from the repo root
 
 # 1) Build content -> dist/
 python3 -m pipeline.build --clean
-python3 -m pipeline.build --validate-only      # CI gate only
-python3 -m pipeline.publish                     # dry-run S3 + CloudFront commands
+python3 -m pipeline.build --validate-only       # CI gate only
 
-# 2) Web client: test the pure core, then serve
-( cd app && npm test )                          # 30 assertions (node)
+# 2) Web client: test the pure core, then serve locally
+( cd app && npm test )                          # 44 assertions (node)
 python3 -m http.server 8000                     # open http://localhost:8000/app/
 
 # 3) Search API: test the pure core (run from repo root!)
-python3 serverless/tests/test_search.py         # 27 assertions
+python3 serverless/tests/test_search.py         # 34 assertions
 
-# 4) Headless smoke test (optional, needs system Chrome + a one-off `npm i puppeteer-core`)
-#    See /tmp/imaps-smoke/smoke.mjs as a starting harness; runs against :8000.
+# 4) END-TO-END DEPLOY (idempotent, ~30 s if no infra changes)
+./scripts/deploy.sh                             # build → sync app/ → sync dist/ → reindex → invalidate
+./scripts/deploy.sh --dry-run                   # print planned commands, do nothing
+./scripts/deploy.sh --skip-build --skip-reindex # tweak-and-republish loop
+./scripts/deploy.sh --rebuild-vendor            # rerun esbuild on the vendor bundles
 
-# 4) Search API: deploy (needs AWS CLI + SAM + creds + Bedrock model enabled)
-cd serverless && sam build -t infra/template.yaml && sam deploy --guided
-#    then index dist/ into the collection (CollectionEndpoint from stack outputs):
-#    OS_ENDPOINT=<endpoint> PYTHONPATH=src python3 -m search.indexer --dist ../dist --recreate
+# 5) Rebuild the vendor bundles (one-time, after npm version bumps)
+( cd .vendor-build && npm install && BUILT_AT=$(date -u +%FT%TZ) node build.mjs )
 
-# Re-render the architecture diagram
+# 6) Build / refresh the Protomaps PMTiles basemap (out-of-band, ~2 min)
+brew install pmtiles                            # one-time
+mkdir -p ~/.cache/imaps
+pmtiles extract https://build.protomaps.com/$(date -u -v-3d +%Y%m%d).pmtiles \
+  ~/.cache/imaps/basemap-hijaz.pmtiles \
+  --bbox 36,18,44,28 --maxzoom 14
+# pipeline/basemap.py picks it up on the next pipeline.build
+
+# 7) Deploy / update IaC stacks (rare — most edits go via scripts/deploy.sh)
+aws cloudformation deploy --region us-east-1 --stack-name islamicmaps-app          --template-file infra/site.yaml          --tags project=islamicmaps environment=mvp
+aws cloudformation deploy --region us-east-1 --stack-name islamicmaps-observability --template-file infra/observability.yaml --tags project=islamicmaps environment=mvp
+aws cloudformation deploy --region us-east-1 --stack-name islamicmaps-cicd          --template-file infra/cicd.yaml          --capabilities CAPABILITY_NAMED_IAM
+( cd serverless && sam build -t infra/template.yaml && \
+  sam deploy --stack-name islamicmaps-search --region us-east-1 --resolve-s3 \
+             --capabilities CAPABILITY_IAM --no-confirm-changeset )
+
+# 8) Subscribe to the alarm topic (one-time)
+aws sns subscribe --region us-east-1 \
+  --topic-arn arn:aws:sns:us-east-1:803129122420:islamicmaps-observability-alarms \
+  --protocol email --notification-endpoint you@example.com
+
+# 9) Re-render the architecture diagram (optional)
 dot -Tpng docs/architecture.dot -o docs/architecture.png
 ```
 
-Note: this is **not currently a git repo** (owner explicitly deferred `git init`,
-2026-06-08). `.gitignore` already excludes `dist/`, `__pycache__/`, etc., for when
-the owner does decide to initialize one. The owner plans a public GitHub repo for
-community contributions later.
+Repo: https://github.com/islamicmaps/im-monolithic (public). CI runs on every
+push (44+34 tests + cfn-lint + template structural-validate). Deploy fires on
+push-to-main once the `AWS_ROLE_ARN` repo variable is set — see §0.
 
 ---
 
 ## 14. Prioritized TODO / next steps
 
-**P0 — verify what's built (do these first on the new machine):**
-1. ~~Browser smoke test of `app/`~~ — **DONE 2026-06-08** (headless Chrome via
-   puppeteer-core, see §7 entry 6). Two bugs found and fixed: the `MapboxOverlay`
-   import path, and the `#modal[hidden]` CSS guard. Map renders, search works, Hijra
-   route animates, Arabic RTL flips.
-2. ~~Decide the **vector store**~~ — **DECIDED 2026-06-08:** S3 + in-memory-vector
-   Lambda. See §11. (Implementation is the new top P1.)
-3. **Owner / on-device smoke** in real Chrome + Safari + Firefox + a phone, walking
-   the §9(a) checklist. The headless smoke covered the module/UI/playback layer; a
-   real GPU + real PWA install + the satellite raster toggle still need eyes.
+**P0 — DONE in 2026-06-09 session (see §0):** browser smoke; vector-store decision +
+implementation; search backend deploy; client→/v1/search wire-up; PWA icons;
+self-host frontend libs; PMTiles basemap; deck.gl shader fix; 3D Kaaba; static
+site stack; observability; CI/CD scaffolding; GitHub push.
 
-**P1 — make it real:**
-3. **Build the S3 + in-memory-vector Lambda backend** (§11). Reuses existing
-   `service.py` / `text.py` / `handler.py`; new code is a small loader that pulls a
-   prebuilt embeddings file from S3 + does brute-force / `hnswlib` kNN against the
-   query embedding. Add a CI step that re-embeds on every `pipeline.build`.
-4. Replace scaffold shortcuts (§10): self-host map libs, swap demo style → PMTiles,
-   create PWA icons, produce the 3 missing media assets, fix the search-index race
-   condition.
-5. Stand up real basemap tiles: generate a Protomaps **PMTiles** basemap, host on S3,
-   wire a proper MapLibre style. (The pipeline can already emit PMTiles on this
-   machine — verified 2026-06-08.)
-6. Deploy the search API (S3+Lambda backend per #3) + wire the client to merge
-   offline + online results (offline-first, augment when connected).
-7. Add a `pipeline/tests/` unit suite.
-8. CI when git is later initialized (GitHub Actions): run all tests +
-   `pipeline.build` on PR; on merge, build + publish to S3 + invalidate CloudFront
-   + re-run the embedder.
+**P0 — what's still left for the owner:**
+1. **Set the GitHub repo variable `AWS_ROLE_ARN`** = `arn:aws:iam::803129122420:role/islamicmaps-cicd-github-deploy`.
+   That's the only manual click between the current state and "every push to main
+   auto-deploys." See §0 last paragraph.
+2. **Subscribe an email to the SNS alarm topic** (otherwise alarms fire silently):
+   `aws sns subscribe --region us-east-1 --topic-arn arn:aws:sns:us-east-1:803129122420:islamicmaps-observability-alarms --protocol email --notification-endpoint you@example.com`
+3. **Real-device smoke** — a real iPhone Safari, a real Android Chrome, a real
+   touchscreen, and a "install as PWA → cut wifi → reload" round.
+
+**P1 — known polish:**
+4. Add a `pipeline/tests/` unit suite (the build itself is the de-facto integration test, but failure-case unit tests would harden it).
+5. A real glTF Kaaba .glb (the procedural extrude is correct geometry, but a textured glTF would be visually striking; the pipeline `models.py` is ready for it).
+6. Lighthouse / Core Web Vitals audit. The static-first hot path *should* be fast; numbers would lock the claim.
+7. SnapStart on the search Lambda (free, mitigates the only real risk in the §11 cost model: cold-start on Bedrock-backed semantic queries).
+8. Real `talbiyah-audio` recording. Today the asset doc is a placeholder.
 
 **P2 — content + credibility:**
 8. Point agentic AI at `schema/` + `schema/README.md` to author more stories (one JSON

@@ -17,20 +17,28 @@ mapsorg/
 │   ├── event.schema.json       Composes places + features + time extent
 │   ├── story.schema.json       Composes features + events + playback (incl. Step $def)
 │   └── catalog.schema.json     Lean manifest + theme taxonomy + offline search seed
-├── examples/                   Worked instances (both MVP stories, end-to-end)
+├── examples/                   Worked instances (both MVP stories, end-to-end) — 18 docs total
 │   ├── source.sealed-nectar.json
 │   ├── place.makkah.json
 │   ├── place.madinah.json
 │   ├── feature.hijra-route.json
 │   ├── event.hijra.json
 │   ├── asset.kaaba-model.json
+│   ├── asset.kaaba-icon.json
+│   ├── feature.kaaba.json      2D Point + icon (atemporal Kaaba marker)
+│   ├── feature.kaaba-volume.json  3D Polygon footprint + render3d.extrude (item 9 of HANDOFF §0)
+│   ├── feature.tawaf-circle.json
+│   ├── feature.pilgrim-marker.json
+│   ├── feature.safa-marwa-path.json
+│   ├── asset.hijra-cover.json     inline-SVG cover (item 10 of HANDOFF §0)
+│   ├── asset.umrah-cover.json     inline-SVG cover (item 10 of HANDOFF §0)
+│   ├── asset.talbiyah-audio.json  placeholder audio doc (item 10 of HANDOFF §0)
 │   ├── story.hijra.json        Temporal playback — animated route + time slider
 │   ├── story.umrah.json        Sequential playback — 3D ritual walkthrough
 │   └── catalog.json            Both stories + theme taxonomy
-├── docs/                       Architecture & design docs
-│   ├── architecture.dot        Graphviz source (edit here, then re-render)
-│   ├── architecture.png        Rendered AWS architecture diagram (PNG)
-│   └── architecture.svg        Rendered AWS architecture diagram (SVG)
+├── docs/                       Architecture & design docs + smoke-test screenshots
+│   ├── architecture.{dot,png,svg}
+│   └── 0[1-5]-*.png            Headless-Chrome smoke screenshots
 ├── pipeline/                   Content build pipeline (run: python3 -m pipeline.build)
 │   ├── build.py                CLI orchestrator: validate -> compile -> dist/
 │   ├── validate.py             JSON Schema conformance + referential integrity
@@ -40,43 +48,56 @@ mapsorg/
 │   ├── arabic.py               Arabic normalization (harakat strip, letter unify)
 │   ├── compress.py             Emit plain + gzip + brotli; report sizes
 │   ├── geometry.py             Features -> GeoJSON; -> PMTiles via GDAL if available
+│   ├── basemap.py              Copy ~/.cache/imaps/basemap-hijaz.pmtiles into dist/basemap/
 │   ├── models.py               3D model LOD manifest (gltf-transform if available)
 │   ├── config.py               Paths, schema mapping, cache rules
-│   ├── publish.py              Dry-run / execute S3 sync + CloudFront invalidation
-│   └── README.md               Pipeline docs + client consumption contract
-├── dist/                       Build output (gitignored): catalog, story bundles,
-│                               search index, geometry, manifests (plain + .gz + .br)
-├── serverless/                 Deep/semantic search API (online-only; SAM/CloudFormation)
+│   ├── publish.py              Legacy — superseded by scripts/deploy.sh
+│   └── README.md
+├── dist/                       Build output (gitignored)
+├── infra/                      CloudFormation for the static-first hot path + ops
+│   ├── site.yaml               S3 + CloudFront + WAF + ACM + Route53 (stack: islamicmaps-app)
+│   ├── observability.yaml      CloudWatch dashboard + 6 alarms + SNS (stack: islamicmaps-observability)
+│   └── cicd.yaml               GitHub OIDC provider + scoped deploy IAM role (stack: islamicmaps-cicd)
+├── serverless/                 Deep/semantic search API (SAM; stack: islamicmaps-search)
 │   ├── infra/template.yaml     HTTP API + Lambda + S3 (index bucket) + Bedrock IAM
-│   ├── src/search/
-│   │   ├── handler.py          Lambda entry: parse event, CORS, 200/400/health/preflight
-│   │   ├── service.py          Bedrock embed (lazy), in-memory dispatch, hybrid RRF
-│   │   ├── store.py            Load gzipped JSON index from S3 (or local); BM25 + cosine
-│   │   ├── text.py             Extract searchable docs from dist/ (multilingual)
-│   │   ├── indexer.py          CI: embed dist/ content, gzip, upload to S3 (or --out local)
-│   │   └── config.py           Env config (model, dims, INDEX_BUCKET/KEY/LOCAL)
-│   ├── src/requirements.txt    boto3 (sam build installs)
-│   ├── tests/test_search.py    Pure-core tests vs real dist/ + fakes (34 assertions)
-│   ├── samconfig.toml          Deploy defaults
-│   └── README.md               Deploy, API contract, indexing, cost trade-offs
-└── app/                        Web client (zero-build ESM PWA: MapLibre + deck.gl)
-    ├── index.html              Shell + importmap (CDN ESM)
-    ├── manifest.webmanifest    PWA manifest
+│   ├── src/search/             handler / service / store / text / indexer / config
+│   ├── tests/test_search.py    34 pure-core assertions
+│   └── README.md
+├── scripts/
+│   └── deploy.sh               Idempotent: build → sync app/ → sync dist/ → reindex → invalidate
+├── .github/workflows/
+│   ├── ci.yml                  PR + push validation: schema, pipeline, tests, cfn-lint
+│   └── deploy.yml              Push-to-main auto-deploy via OIDC (needs AWS_ROLE_ARN repo var)
+├── .vendor-build/              Build-time esbuild glue (NOT a runtime path)
+│   ├── package.json            Pinned: maplibre-gl 5.24.0, deck.gl 9.3.3, pmtiles 4.4.1, …
+│   ├── build.mjs               Tree-shaken bundles → app/vendor/
+│   └── README.md
+└── app/                        Web client (zero-build ESM PWA: MapLibre + deck.gl + Protomaps)
+    ├── index.html              Shell + importmap pointing at ./vendor/*
+    ├── manifest.webmanifest    PWA manifest (icons + maskable variants)
+    ├── favicon.ico
     ├── sw.js                   Service worker (shell cache-first, data network-first)
-    ├── package.json            type=module; `npm test`, `npm run serve`
+    ├── icons/                  192/512 (any+maskable), apple-touch, favicon-{16,32}, .ico
     ├── css/style.css           Map-first UI, RTL-aware (logical properties)
+    ├── vendor/                 Self-hosted bundles (built by .vendor-build, checked in)
+    │   ├── maplibre-gl.{mjs,css}
+    │   ├── deck.gl.mjs         Combined deck.gl + @deck.gl/mapbox (one @deck.gl/core copy)
+    │   ├── pmtiles.mjs         pmtiles:// protocol handler
+    │   ├── basemap-style.json  Pre-baked Protomaps light theme
+    │   └── VERSIONS.json
     ├── js/
-    │   ├── main.js             Orchestrator: data -> search -> map -> deck -> playback -> UI
-    │   ├── config.js           Data base, basemap sources, adaptive-quality table
+    │   ├── main.js             Orchestrator: data → search → map → deck → playback → UI
+    │   ├── config.js           Data base, basemap sources, SEARCH_API resolver
     │   ├── arabic.js           Arabic normalization (mirrors pipeline/arabic.py)
     │   ├── i18n.js             RTL direction, LocalizedString lookup, UI strings
     │   ├── data.js             Fetch catalog/bundles/index (cache + deref)
     │   ├── search.js           Offline search over the prebuilt index (pure)
+    │   ├── searchApi.js        Online deep/semantic search client (pure, fetch-injectable)
     │   ├── playback.js         Story playback state machine (pure) — the play button
-    │   ├── map.js              MapLibre setup + basemap toggle + flyTo
-    │   ├── layers.js           deck.gl layers: 2D/3D + animated route/marker (pure geo helpers)
+    │   ├── map.js              MapLibre setup + pmtiles:// protocol + basemap toggle + flyTo
+    │   ├── layers.js           deck.gl layers: 2D/3D extrude/glTF + animated route/marker
     │   └── ui.js               DOM: search, themes, story panel, play bar, sources modal
-    └── test/logic.test.mjs     Node tests for the pure core vs real dist/ (30 assertions)
+    └── test/logic.test.mjs     Node tests against real dist/ (44 assertions)
 ```
 
 ## Web client (see `app/README.md`)
