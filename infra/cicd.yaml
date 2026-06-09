@@ -14,14 +14,10 @@ Parameters:
     Type: String
     Default: im-monolithic
     Description: Repository name (no slashes).
-  AllowedRefs:
-    Type: CommaDelimitedList
-    Default: "ref:refs/heads/main,pull_request"
-    Description: >
-      Which GitHub OIDC subjects can assume the role.
-      "ref:refs/heads/main" allows deploys from main; "pull_request" allows
-      validation/test runs on PRs (with read-only effective permissions via
-      a separate workflow choice). Comma-separated.
+  # NOTE: which GitHub OIDC subjects can assume the role is hardcoded inline
+  # in the AssumeRolePolicy (StringLike on `:sub`) — currently main + PRs.
+  # This used to be an AllowedRefs CommaDelimitedList parameter but it was
+  # never wired into the trust policy, so removing it.
   SiteBucket:
     Type: String
     Default: app.islamicmaps.org
@@ -31,6 +27,9 @@ Parameters:
   CloudFrontDistributionArn:
     Type: String
     Default: arn:aws:cloudfront::803129122420:distribution/E229ILRSBM7I4J
+    Description: >
+      Full ARN of the production CloudFront distribution. Pass a different
+      partition (e.g. arn:aws-cn:...) when deploying outside the standard partition.
 
 Resources:
   # ---------------------------------------------------------------------------
@@ -85,8 +84,8 @@ Resources:
                   - s3:ListBucket
                   - s3:GetBucketLocation
                 Resource:
-                  - !Sub "arn:aws:s3:::${SiteBucket}"
-                  - !Sub "arn:aws:s3:::${IndexBucket}"
+                  - !Sub "arn:${AWS::Partition}:s3:::${SiteBucket}"
+                  - !Sub "arn:${AWS::Partition}:s3:::${IndexBucket}"
               - Sid: SiteObjectReadWrite
                 Effect: Allow
                 Action:
@@ -97,8 +96,8 @@ Resources:
                   - s3:ListMultipartUploadParts
                   - s3:AbortMultipartUpload
                 Resource:
-                  - !Sub "arn:aws:s3:::${SiteBucket}/*"
-                  - !Sub "arn:aws:s3:::${IndexBucket}/*"
+                  - !Sub "arn:${AWS::Partition}:s3:::${SiteBucket}/*"
+                  - !Sub "arn:${AWS::Partition}:s3:::${IndexBucket}/*"
 
               # CloudFront invalidation — limited to the project distribution.
               - Sid: CloudFrontInvalidate
@@ -110,7 +109,7 @@ Resources:
               - Sid: BedrockEmbed
                 Effect: Allow
                 Action: bedrock:InvokeModel
-                Resource: arn:aws:bedrock:*::foundation-model/*
+                Resource: !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/*"
 
               # CloudFormation describe (resolve stack outputs in deploy.sh).
               - Sid: CfnDescribe
@@ -135,9 +134,9 @@ Resources:
                   - cloudformation:GetTemplateSummary
                   - cloudformation:ValidateTemplate
                 Resource:
-                  - !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/islamicmaps-*"
-                  - !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/islamicmaps-*/*"
-                  - "arn:aws:cloudformation:*:aws:transform/Serverless-2016-10-31"
+                  - !Sub "arn:${AWS::Partition}:cloudformation:*:${AWS::AccountId}:stack/islamicmaps-*"
+                  - !Sub "arn:${AWS::Partition}:cloudformation:*:${AWS::AccountId}:stack/islamicmaps-*/*"
+                  - !Sub "arn:${AWS::Partition}:cloudformation:*:aws:transform/Serverless-2016-10-31"
 
 Outputs:
   RoleArn:

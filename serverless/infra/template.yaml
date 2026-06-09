@@ -83,7 +83,7 @@ Resources:
         - Statement:
             - Effect: Allow
               Action: bedrock:InvokeModel
-              Resource: arn:aws:bedrock:*::foundation-model/*
+              Resource: !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/*"
             - Effect: Allow
               Action:
                 - s3:GetObject

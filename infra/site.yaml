@@ -240,7 +240,7 @@ Resources:
             Resource: !Sub "${SiteBucket.Arn}/*"
             Condition:
               StringEquals:
-                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}"
+                AWS:SourceArn: !Sub "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Distribution}"
 
   # ---------------------------------------------------------------------------
   # 8) Route53 alias records (A + AAAA) → CloudFront.

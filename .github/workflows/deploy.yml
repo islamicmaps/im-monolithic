@@ -46,6 +46,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install jsonschema brotli boto3
 
+      - name: Check AWS_ROLE_ARN repo variable is set
+        run: |
+          if [ -z "${{ vars.AWS_ROLE_ARN }}" ]; then
+            echo "::error::Repo variable AWS_ROLE_ARN is empty."
+            echo "::error::Set it to: arn:aws:iam::<acct>:role/islamicmaps-cicd-github-deploy"
+            echo "::error::Settings → Secrets and variables → Actions → Variables → New repository variable"
+            exit 1
+          fi
+
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
