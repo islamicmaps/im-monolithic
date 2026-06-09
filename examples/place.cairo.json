@@ -1,0 +1,14 @@
+{
+  "id": "cairo",
+  "type": "place",
+  "names": { "en": "Cairo", "ar": "القاهرة", "ur": "قاہرہ", "fr": "Le Caire" },
+  "alt_names": ["Al-Qahirah", "Kahirah", "Misr", "القاهرة"],
+  "kind": "city",
+  "geometry": { "type": "Point", "coordinates": [31.2357, 30.0444] },
+  "gazetteer_ids": { "wikidata": "Q85", "geonames": "360630" },
+  "info": [
+    { "kind": "text", "body": { "en": "Mamluk capital and the largest city in the Islamic world when Ibn Battuta arrived in 1326. He marvelled at its bustling markets and madrasas." } }
+  ],
+  "sources": ["source:battuta-rihla"],
+  "themes": ["scholars", "caliphates"]
+}

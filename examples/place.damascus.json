@@ -1,0 +1,14 @@
+{
+  "id": "damascus",
+  "type": "place",
+  "names": { "en": "Damascus", "ar": "دمشق", "ur": "دمشق", "tr": "Şam" },
+  "alt_names": ["Dimashq", "Sham", "ash-Sham", "دمشق"],
+  "kind": "city",
+  "geometry": { "type": "Point", "coordinates": [36.2765, 33.5138] },
+  "gazetteer_ids": { "wikidata": "Q3766", "geonames": "170654" },
+  "info": [
+    { "kind": "text", "body": { "en": "Ancient Umayyad capital and a major centre of Islamic learning; Ibn Battuta studied there with several scholars in 1326 before joining the Hajj caravan to Mecca." } }
+  ],
+  "sources": ["source:battuta-rihla"],
+  "themes": ["scholars", "caliphates"]
+}

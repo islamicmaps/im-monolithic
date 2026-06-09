@@ -1,0 +1,14 @@
+{
+  "id": "kilwa",
+  "type": "place",
+  "names": { "en": "Kilwa Kisiwani", "ar": "كلوة كيسيواني", "sw": "Kilwa Kisiwani" },
+  "alt_names": ["Kilwa", "Quiloa", "كلوة"],
+  "kind": "city",
+  "geometry": { "type": "Point", "coordinates": [39.5114, -8.9583] },
+  "gazetteer_ids": { "wikidata": "Q913884", "geonames": "157849" },
+  "info": [
+    { "kind": "text", "body": { "en": "Wealthy Swahili sultanate on the East African coast (today southern Tanzania); Ibn Battuta praised its beauty and the piety of its sultan in 1331. UNESCO World Heritage site." } }
+  ],
+  "sources": ["source:battuta-rihla"],
+  "themes": ["scholars", "trade"]
+}

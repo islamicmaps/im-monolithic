@@ -1,0 +1,122 @@
+{
+  "id": "battuta-rihla",
+  "type": "story",
+  "title": { "en": "Ibn Battuta: Thirty Years on the Road", "ar": "ابن بطوطة: ثلاثون عامًا على الطريق" },
+  "subtitle": { "en": "A 75,000-mile journey across the medieval Islamic world", "ar": "رحلة ٧٥٬٠٠٠ ميل عبر العالم الإسلامي في العصور الوسطى" },
+  "description": { "en": "Follow the Tangier-born scholar Ibn Battuta on the longest documented journey of the pre-modern world — from a 1325 departure for Hajj that grew into three decades of travel through Egypt, Syria, the Swahili coast, India, China, and Mali." },
+  "category": "biography",
+  "themes": ["scholars", "trade"],
+  "cover": "asset:battuta-cover",
+  "bbox": [-15, -12, 122, 42],
+  "default_view": { "center": [50, 25], "zoom": 2.2, "pitch": 35, "bearing": 0, "duration_ms": 2500 },
+  "languages": ["en", "ar"],
+  "features": ["feature:battuta-route"],
+  "events": ["event:battuta-rihla"],
+  "playback": {
+    "mode": "temporal",
+    "timeline": {
+      "min": { "sort_key": 1325.4, "display": { "en": "1325 — Departure" } },
+      "max": { "sort_key": 1354.9, "display": { "en": "1354 — Return" } },
+      "speeds": [1, 2, 5]
+    },
+    "steps": [
+      {
+        "id": "tangier-1325",
+        "at_time": { "sort_key": 1325.45, "display": { "en": "June 1325 · Tangier" } },
+        "title": { "en": "1. Departure from Tangier", "ar": "الخروج من طنجة" },
+        "narration": { "en": "Aged 21, Ibn Battuta sets out alone for the Hajj — never imagining he will not see his family again for nearly 30 years." },
+        "camera": { "center": [-5.8136, 35.7595], "zoom": 5, "pitch": 35, "duration_ms": 2500 },
+        "show": ["feature:battuta-route"],
+        "animate": [ { "feature": "feature:battuta-route", "kind": "trip", "t_start": 0, "t_end": 1 } ],
+        "duration_ms": 6000
+      },
+      {
+        "id": "cairo-1326",
+        "at_time": { "sort_key": 1326.3, "display": { "en": "Apr 1326 · Cairo" } },
+        "title": { "en": "2. Cairo: the largest city in the world", "ar": "القاهرة: أكبر مدن العالم" },
+        "narration": { "en": "Mamluk Cairo astonishes him: 12,000 water-carriers, 30,000 muleteers, and madrasas everywhere." },
+        "camera": { "center": [31.2357, 30.0444], "zoom": 5, "pitch": 35, "duration_ms": 2500 },
+        "duration_ms": 5000
+      },
+      {
+        "id": "damascus-1326",
+        "at_time": { "sort_key": 1326.7, "display": { "en": "Aug 1326 · Damascus" } },
+        "title": { "en": "3. Damascus: scholarship & the Hajj caravan", "ar": "دمشق: العلم والقافلة" },
+        "narration": { "en": "He studies with Damascene shaykhs through Ramadan, then joins the great Hajj caravan that will take him south to Mecca." },
+        "camera": { "center": [36.2765, 33.5138], "zoom": 5, "pitch": 35, "duration_ms": 2500 },
+        "duration_ms": 5000
+      },
+      {
+        "id": "mecca-1326",
+        "at_time": { "sort_key": 1326.95, "display": { "en": "Oct 1326 · Mecca" } },
+        "title": { "en": "4. First Hajj", "ar": "الحج الأول" },
+        "narration": { "en": "He performs Hajj for the first of seven times across his career and resolves to keep traveling." },
+        "camera": { "center": [39.8262, 21.4225], "zoom": 6, "pitch": 35, "duration_ms": 2500 },
+        "duration_ms": 5000
+      },
+      {
+        "id": "kilwa-1331",
+        "at_time": { "sort_key": 1331.3, "display": { "en": "1331 · Kilwa" } },
+        "title": { "en": "5. The Swahili coast", "ar": "الساحل السواحلي" },
+        "narration": { "en": "Down the East African coast — Mogadishu, Mombasa, Kilwa — he calls Kilwa one of the most beautiful and best-built cities in the world." },
+        "camera": { "center": [39.5114, -8.9583], "zoom": 4, "pitch": 35, "duration_ms": 2500 },
+        "duration_ms": 5000
+      },
+      {
+        "id": "delhi-1334",
+        "at_time": { "sort_key": 1334.6, "display": { "en": "1334 · Delhi" } },
+        "title": { "en": "6. Eight years as a qadi in Delhi", "ar": "ثماني سنين قاضيًا في دلهي" },
+        "narration": { "en": "Sultan Muhammad bin Tughluq appoints him chief qadi of Delhi on a salary of 12,000 silver dinars — and later sends him to China as ambassador." },
+        "camera": { "center": [77.1025, 28.7041], "zoom": 4, "pitch": 35, "duration_ms": 2500 },
+        "duration_ms": 5000
+      },
+      {
+        "id": "quanzhou-1345",
+        "at_time": { "sort_key": 1345.5, "display": { "en": "1345 · Quanzhou (Zaytun)" } },
+        "title": { "en": "7. China — port of Zaytun", "ar": "الصين — ميناء زيتون" },
+        "narration": { "en": "He reaches the great Chinese port of Quanzhou (Zaytun) — the easternmost point of his journey — and finds a thriving community of Muslim merchants." },
+        "camera": { "center": [118.6757, 24.8741], "zoom": 4, "pitch": 35, "duration_ms": 2500 },
+        "duration_ms": 5000
+      },
+      {
+        "id": "timbuktu-1352",
+        "at_time": { "sort_key": 1352.9, "display": { "en": "1352–53 · Timbuktu" } },
+        "title": { "en": "8. Mali Empire & Timbuktu", "ar": "إمبراطورية مالي وتمبكتو" },
+        "narration": { "en": "Crossing the Sahara, he reaches the court of Mansa Sulayman in Mali — and stops at Timbuktu before turning home." },
+        "camera": { "center": [-3.0026, 16.7666], "zoom": 4, "pitch": 35, "duration_ms": 2500 },
+        "duration_ms": 5000
+      },
+      {
+        "id": "tangier-1354",
+        "at_time": { "sort_key": 1354.85, "display": { "en": "1354 · Tangier" } },
+        "title": { "en": "9. Return to Tangier", "ar": "العودة إلى طنجة" },
+        "narration": { "en": "After ~75,000 miles and three decades, he returns home — and dictates the Rihla to Ibn Juzayy at the order of the Marinid sultan." },
+        "camera": { "center": [-5.8136, 35.7595], "zoom": 5, "pitch": 35, "duration_ms": 2500 },
+        "duration_ms": 5000
+      }
+    ]
+  },
+  "scrolly": {
+    "enabled": true,
+    "sections": [
+      { "step": "tangier-1325", "text": { "en": "\"My departure from Tangier — my birthplace — took place on Thursday 2nd Rajab 725 (June 14, 1325) ... I was at that time twenty-two years of age, with the intention of making the pilgrimage to the Holy House and visiting the tomb of the Prophet ﷺ.\"" } },
+      { "step": "delhi-1334", "text": { "en": "His Indian sojourn under Muhammad bin Tughluq lasted eight years — by far the longest stay of his career. He served as a chief qadi, married into the court, and barely survived several brushes with the sultan's volatile favor." } },
+      { "step": "quanzhou-1345", "text": { "en": "Quanzhou — Zaytun in his Arabic — was then the greatest port in the medieval world. He noted four large Friday mosques, a flourishing community of foreign Muslims, and ships sailing as far as Borneo, Java, and the Maldives." } },
+      { "step": "tangier-1354", "text": { "en": "Modern scholarship treats some legs of the Rihla — the Volga–Bulgar excursion, parts of the China narrative — as compressed or borrowed; but the broad outline is corroborated by independent sources, and the achievement is unprecedented." } }
+    ]
+  },
+  "info": [
+    { "kind": "heading", "title": { "en": "Why it matters" } },
+    { "kind": "text", "body": { "en": "The Rihla is the most extensive single source on the social, religious, and political life of the 14th-century Islamic world. Ibn Battuta's eyewitness accounts of Mamluk Cairo, Tughluq Delhi, the Maldives sultanate, and Mansa Musa's Mali are foundational to the historical record." } },
+    { "kind": "citation", "source": "source:battuta-rihla" },
+    { "kind": "external_link", "url": "https://en.wikipedia.org/wiki/Ibn_Battuta" }
+  ],
+  "sources": ["source:battuta-rihla"],
+  "review": {
+    "stage": "ai-generated",
+    "certainty": "established",
+    "note": { "en": "Itinerary follows the standard scholarly chronology (Gibb 1958, Dunn 1986, Hrbek 1962). Some leg-by-leg dates are reconstructions and remain debated — flagged where significant. Pending scholar review before promotion to 'verified'." },
+    "updated": "2026-06-09"
+  },
+  "updated": "2026-06-09"
+}

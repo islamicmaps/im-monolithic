@@ -1,0 +1,14 @@
+{
+  "id": "delhi",
+  "type": "place",
+  "names": { "en": "Delhi", "ar": "دلهي", "ur": "دہلی", "hi": "दिल्ली" },
+  "alt_names": ["Dehli", "Dilli", "Shahjahanabad", "دہلی"],
+  "kind": "city",
+  "geometry": { "type": "Point", "coordinates": [77.1025, 28.7041] },
+  "gazetteer_ids": { "wikidata": "Q1353", "geonames": "1273294" },
+  "info": [
+    { "kind": "text", "body": { "en": "Capital of the Delhi Sultanate under Muhammad bin Tughluq, who appointed Ibn Battuta as a qadi (judge) and later sent him as ambassador to China. He spent ~8 years here (1334–1341)." } }
+  ],
+  "sources": ["source:battuta-rihla"],
+  "themes": ["scholars", "caliphates"]
+}

@@ -1,0 +1,39 @@
+{
+  "id": "battuta-route",
+  "type": "feature",
+  "label": { "en": "Travels of Ibn Battuta", "ar": "رحلة ابن بطوطة" },
+  "geometry": {
+    "inline": {
+      "type": "LineString",
+      "coordinates": [
+        [-5.8136, 35.7595],
+        [31.2357, 30.0444],
+        [36.2765, 33.5138],
+        [39.8262, 21.4225],
+        [39.5114, -8.9583],
+        [77.1025, 28.7041],
+        [118.6757, 24.8741],
+        [-3.0026, 16.7666],
+        [-5.8136, 35.7595]
+      ]
+    }
+  },
+  "render2d": { "shape": "line", "color": "#1f7a4d", "width": 3, "opacity": 0.85 },
+  "temporal": {
+    "edtf": "1325/1354",
+    "calendar": "gregorian",
+    "era": "CE",
+    "precision": "year",
+    "certainty": "circa",
+    "gregorian": { "year": 1325 },
+    "hijri": { "year": 725 },
+    "sort_key": 1325.0,
+    "display": { "en": "1325–1354 CE / 725–755 AH", "ar": "١٣٢٥–١٣٥٤ م" },
+    "note": { "en": "Composite route — major waypoints only. The Rihla covered ~75,000 miles and dozens of intermediate cities; this nine-segment line is a reading of the journey, not a literal track." }
+  },
+  "info": [
+    { "kind": "text", "body": { "en": "From Tangier (1325) → Cairo, Damascus → Mecca for Hajj → East Africa (Kilwa) → India (Delhi, ~8 years as qadi) → China (Zaytun/Quanzhou as Sultan Tughluq's envoy) → return westward → Mali (Timbuktu, 1352–53) → Tangier (1354). Roughly 30 years and three pilgrimages to Mecca along the way." } }
+  ],
+  "sources": ["source:battuta-rihla"],
+  "themes": ["scholars", "trade"]
+}

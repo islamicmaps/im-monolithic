@@ -1,0 +1,14 @@
+{
+  "id": "timbuktu",
+  "type": "place",
+  "names": { "en": "Timbuktu", "ar": "تمبكتو", "fr": "Tombouctou" },
+  "alt_names": ["Tombouctou", "Tinbuktu", "Timbuctoo", "تمبكتو"],
+  "kind": "city",
+  "geometry": { "type": "Point", "coordinates": [-3.0026, 16.7666] },
+  "gazetteer_ids": { "wikidata": "Q19899", "geonames": "2449067" },
+  "info": [
+    { "kind": "text", "body": { "en": "Trans-Saharan crossroads of the Mali Empire under Mansa Sulayman; Ibn Battuta passed through in 1352–53 on his final journey south. Then a centre of Islamic scholarship and gold-salt trade." } }
+  ],
+  "sources": ["source:battuta-rihla"],
+  "themes": ["scholars", "trade"]
+}

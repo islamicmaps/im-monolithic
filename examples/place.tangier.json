@@ -1,0 +1,14 @@
+{
+  "id": "tangier",
+  "type": "place",
+  "names": { "en": "Tangier", "ar": "طنجة", "fr": "Tanger" },
+  "alt_names": ["Tangiers", "Tanja", "Tingis", "طنجة"],
+  "kind": "city",
+  "geometry": { "type": "Point", "coordinates": [-5.8136, 35.7595] },
+  "gazetteer_ids": { "wikidata": "Q11035", "geonames": "2530335" },
+  "info": [
+    { "kind": "text", "body": { "en": "Birthplace of Ibn Battuta (1304); the starting and ending point of his ~75,000-mile, 30-year journey. Then a Marinid port; today the principal city of northern Morocco." } }
+  ],
+  "sources": ["source:battuta-rihla"],
+  "themes": ["scholars"]
+}

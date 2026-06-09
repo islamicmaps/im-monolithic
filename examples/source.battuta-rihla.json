@@ -1,0 +1,14 @@
+{
+  "id": "battuta-rihla",
+  "type": "source",
+  "kind": "book",
+  "title": { "en": "The Travels of Ibn Battuta, A.D. 1325–1354", "ar": "تحفة النظار في غرائب الأمصار وعجائب الأسفار (الرحلة)" },
+  "author": { "en": "Ibn Battuta; tr. H. A. R. Gibb", "ar": "ابن بطوطة" },
+  "publisher": { "en": "Hakluyt Society / Cambridge University Press" },
+  "year": { "sort_key": 1958, "gregorian": { "year": 1958 }, "calendar": "gregorian", "era": "CE", "display": { "en": "1958–1994 (5 vols)" } },
+  "reliability": { "en": "Gibb's annotated translation of the Rihla as dictated to Ibn Juzayy in 1354–55 is the standard scholarly edition. Some itinerary details are reconstructed; long-disputed gaps (notably the Volga–Bulgar leg and parts of the China account) are flagged in commentary. Cross-check contested dates against Hrbek (1962) and Dunn, *The Adventures of Ibn Battuta* (1986)." },
+  "ext": {
+    "isbn": "978-0904180374",
+    "wikidata": "Q3543610"
+  }
+}

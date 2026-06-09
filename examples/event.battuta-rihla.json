@@ -1,0 +1,18 @@
+{
+  "id": "battuta-rihla",
+  "type": "event",
+  "title": { "en": "The Travels of Ibn Battuta (Rihla)", "ar": "رحلة ابن بطوطة" },
+  "summary": { "en": "Thirty years of travel by the Tangier-born scholar Ibn Battuta — across North Africa, Arabia, the Swahili coast, Persia, India, the Maldives, China, and Mali — covering ~75,000 miles, more than any pre-modern traveler." },
+  "temporal": {
+    "start": { "edtf": "1325-06", "calendar": "gregorian", "era": "CE", "precision": "month", "certainty": "circa", "gregorian": { "year": 1325, "month": 6 }, "hijri": { "year": 725 }, "sort_key": 1325.45, "display": { "en": "Jun 1325 CE / Rajab 725 AH" } },
+    "end":   { "edtf": "1354", "calendar": "gregorian", "era": "CE", "precision": "year", "certainty": "circa", "gregorian": { "year": 1354 }, "hijri": { "year": 755 }, "sort_key": 1354.9, "display": { "en": "1354 CE / 755 AH" } }
+  },
+  "places": ["place:tangier", "place:cairo", "place:damascus", "place:makkah", "place:kilwa", "place:delhi", "place:quanzhou", "place:timbuktu"],
+  "features": ["feature:battuta-route"],
+  "people": [
+    { "name": { "en": "Ibn Battuta", "ar": "ابن بطوطة" }, "role": { "en": "Traveler / qadi" } },
+    { "name": { "en": "Ibn Juzayy", "ar": "ابن جزي" }, "role": { "en": "Scribe (dictated the Rihla in 1354–55)" } }
+  ],
+  "sources": ["source:battuta-rihla"],
+  "themes": ["scholars", "trade"]
+}

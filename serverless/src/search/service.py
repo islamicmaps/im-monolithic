@@ -58,10 +58,20 @@ def _bedrock():
     return _bedrock_client
 
 
+# Cohere `embed-multilingual-v3` rejects inputs over 2048 chars at the Bedrock
+# input-validator (the `truncate=END` field is honored by Cohere natively but
+# silently ignored by the AWS adapter). Truncate to a safe budget before send.
+# The first ~2 KB of a document — title + subtitle + snippet + the first few
+# narration paragraphs — is plenty of signal for ranking; the stored `text`
+# is unchanged so lexical / BM25 still sees the full body.
+_BEDROCK_TEXT_LIMIT = 2000
+
+
 def embed(text: str, input_type: str = "search_query", client=None) -> list[float]:
     """Embed `text` with the configured Bedrock model.
 
     Supports Cohere (`texts`/`input_type`) and Titan (`inputText`) response shapes.
+    Long inputs are truncated to ``_BEDROCK_TEXT_LIMIT`` chars at the boundary.
 
     Args:
         text: Text to embed.
@@ -71,6 +81,8 @@ def embed(text: str, input_type: str = "search_query", client=None) -> list[floa
     Returns:
         The embedding vector.
     """
+    if len(text) > _BEDROCK_TEXT_LIMIT:
+        text = text[:_BEDROCK_TEXT_LIMIT]
     client = client or _bedrock()
     model = config.EMBED_MODEL
     if model.startswith("cohere."):

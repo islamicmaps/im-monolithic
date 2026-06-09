@@ -46,7 +46,8 @@ ok("search gibberish -> empty", query(idx, "zzzzqx").length === 0);
 const fetchImpl = async (url) => ({ ok: true, json: async () => JSON.parse(await readFile(url, "utf8")) });
 const base = DIST.pathname;
 const catalog = await loadJSON("catalog.json", { fetchImpl, base });
-ok("loadJSON catalog has 2 stories", catalog.stories.length === 2);
+ok("loadJSON catalog has hijra + umrah-steps + battuta-rihla",
+  ["hijra", "umrah-steps", "battuta-rihla"].every((id) => catalog.stories.some((s) => s.id === id)));
 
 // --- Playback: temporal (Hijra) ---
 const hijra = await readDist("stories/hijra.json");

@@ -41,7 +41,7 @@ def ok(name, cond):
 # --- text extraction against real built content ---
 catalog, stories = _load_dist()
 docs = {d["id"]: d for d in text.extract_documents(catalog, stories)}
-ok("extract: two story docs", set(docs) == {"hijra", "umrah-steps"})
+ok("extract: hijra + umrah present", {"hijra", "umrah-steps"}.issubset(docs))
 ok("extract: hijra text has key terms", all(w in docs["hijra"]["text"] for w in ["Hijra", "Mecca", "Medina"]))
 ok("extract: umrah text has ritual terms", all(w in docs["umrah-steps"]["text"] for w in ["Umrah", "Tawaf", "Kaaba"]))
 ok("extract: themes + url carried", docs["hijra"]["themes"] == ["seerah"] and docs["hijra"]["url"].endswith("hijra.json"))
@@ -50,24 +50,26 @@ ok("extract: arabic present in text", "الهجرة" in docs["hijra"]["text"])
 # --- indexer doc building (pure, fake embedder) ---
 fake_vec = lambda t, input_type="x": [0.1, 0.2, 0.3, 0.4]  # noqa: E731
 idx_docs = indexer.build_index_docs(catalog, stories, fake_vec)
-ok("indexer: embeds every doc", len(idx_docs) == 2 and all(len(d["embedding"]) == 4 for d in idx_docs))
+n_docs = len(idx_docs)
+ok("indexer: embeds every doc", n_docs >= 2 and all(len(d["embedding"]) == 4 for d in idx_docs))
 artifact = indexer.build_artifact(catalog, stories, fake_vec, model="fake", dim=4)
 ok("indexer: artifact carries model+dim+count",
-   artifact["model"] == "fake" and artifact["dim"] == 4 and artifact["doc_count"] == 2)
+   artifact["model"] == "fake" and artifact["dim"] == 4 and artifact["doc_count"] == n_docs)
 encoded = indexer.encode_artifact(artifact)
 ok("indexer: encoded as gzip", encoded[:2] == b"\x1f\x8b")
 roundtrip = store._read_payload(encoded)
 ok("indexer: gzip roundtrip preserves docs",
-   {d["id"] for d in roundtrip["docs"]} == {"hijra", "umrah-steps"})
+   {"hijra", "umrah-steps"}.issubset(d["id"] for d in roundtrip["docs"]))
 
 # --- store: load + lexical (BM25) + semantic (cosine) over real content ---
-# Build an Index with deterministic per-doc vectors so semantic ordering is testable.
+# Build an Index with deterministic one-hot per-doc vectors so semantic
+# ordering is testable. The vector dimension scales with the corpus.
 docs_for_index = []
 for i, d in enumerate(idx_docs):
-    v = [0.0, 0.0]
+    v = [0.0] * n_docs
     v[i] = 1.0
     docs_for_index.append({**d, "embedding": v})
-idx = store.parse_index({"model": "fake", "dim": 2, "docs": docs_for_index})
+idx = store.parse_index({"model": "fake", "dim": n_docs, "docs": docs_for_index})
 
 lex_hits = store.lexical_search(idx, "tawaf kaaba", k=10)
 ok("store lexical: hits umrah first", lex_hits and lex_hits[0]["id"] == "umrah-steps")
@@ -97,25 +99,37 @@ ok("store filter: unknown theme empties result", filt_none == [])
 tmp = HERE / "_test-index.json.gz"
 tmp.write_bytes(encoded)
 loaded = store.load_index(local=str(tmp))
-ok("store load_index: local file path", len(loaded.docs) == 2)
+ok("store load_index: local file path", len(loaded.docs) == n_docs)
 tmp.unlink()
 
 
 # --- search orchestration (service layer) with injected embed + index ---
+# Build a one-hot query vector that aligns with the doc at the given index.
+# `idx_docs` is in the same order the catalog produced (hijra=0, umrah=1,
+# battuta=2, …). We bias toward hijra when the query mentions Mecca/Medina,
+# umrah otherwise — this preserves the original test intent regardless of
+# how many extra stories the catalog grows to.
+hijra_i = next(i for i, d in enumerate(idx_docs) if d["id"] == "hijra")
+umrah_i = next(i for i, d in enumerate(idx_docs) if d["id"] == "umrah-steps")
+
+def _onehot(i):
+    v = [0.0] * n_docs
+    v[i] = 1.0
+    return v
+
 calls = {"embed": 0}
 
 
 def fake_embed(t, input_type="search_query"):
     calls["embed"] += 1
-    # Bias the query embedding toward whichever doc's text contains the query.
-    return [1.0, 0.0] if "mecca" in t.lower() or "medina" in t.lower() else [0.0, 1.0]
+    return _onehot(hijra_i) if "mecca" in t.lower() or "medina" in t.lower() else _onehot(umrah_i)
 
 
 res_hyb = service.search("tawaf", mode="hybrid", k=10, embed_fn=fake_embed, index=idx)
 ok("search hybrid: mode + count", res_hyb["mode"] == "hybrid" and res_hyb["count"] >= 1)
 ok("search hybrid: embeds the query", calls["embed"] == 1)
-ok("search hybrid: returns both stories",
-   {h["id"] for h in res_hyb["hits"]} == {"hijra", "umrah-steps"})
+ok("search hybrid: hijra + umrah both present",
+   {"hijra", "umrah-steps"}.issubset(h["id"] for h in res_hyb["hits"]))
 
 res_lex = service.search("medina", mode="lexical", embed_fn=fake_embed, index=idx)
 ok("search lexical: no embedding call", calls["embed"] == 1)  # unchanged

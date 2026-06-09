@@ -1,6 +1,6 @@
 {
-  "version": "2026-06-08",
-  "updated": "2026-06-08",
+  "version": "2026-06-09",
+  "updated": "2026-06-09",
   "locales": ["en", "ar", "ur", "id", "tr", "fr"],
   "themes": [
     { "id": "seerah", "label": { "en": "Seerah (Life of the Prophet ﷺ)", "ar": "السيرة النبوية" }, "icon": "mosque" },
@@ -41,6 +41,21 @@
       "url": "/stories/umrah-steps.json",
       "byte_size": 7600,
       "updated": "2026-06-08"
+    },
+    {
+      "id": "battuta-rihla",
+      "title": { "en": "Ibn Battuta: Thirty Years on the Road", "ar": "ابن بطوطة: ثلاثون عامًا على الطريق" },
+      "subtitle": { "en": "A 75,000-mile journey across the medieval Islamic world" },
+      "category": "biography",
+      "themes": ["scholars", "trade"],
+      "keywords": ["ibn battuta", "battuta", "rihla", "tangier", "cairo", "damascus", "delhi", "kilwa", "quanzhou", "zaytun", "timbuktu", "mali", "ابن بطوطة", "الرحلة", "طنجة", "دلهي"],
+      "bbox": [-15, -12, 122, 42],
+      "thumb": "https://cdn.islamicmaps.org/thumbs/battuta.webp",
+      "temporal_range": { "min_sort_key": 1325.4, "max_sort_key": 1354.9, "display": { "en": "1325–1354 CE / 725–755 AH" } },
+      "languages": ["en", "ar"],
+      "url": "/stories/battuta-rihla.json",
+      "byte_size": 10500,
+      "updated": "2026-06-09"
     }
   ]
 }

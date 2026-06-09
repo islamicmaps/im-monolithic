@@ -1,0 +1,14 @@
+{
+  "id": "quanzhou",
+  "type": "place",
+  "names": { "en": "Quanzhou", "ar": "تشيوانتشو", "zh": "泉州" },
+  "alt_names": ["Zaytun", "Zaiton", "Chinchew", "Citong", "زيتون"],
+  "kind": "city",
+  "geometry": { "type": "Point", "coordinates": [118.6757, 24.8741] },
+  "gazetteer_ids": { "wikidata": "Q170825", "geonames": "1797929" },
+  "info": [
+    { "kind": "text", "body": { "en": "The greatest port in the medieval Indian Ocean trade — Ibn Battuta knew it as Zaytun. Site of a thriving Muslim merchant community, Friday mosques, and stone-built mausolea. He arrived c. 1345 as Sultan Tughluq's envoy to the Yuan court." } }
+  ],
+  "sources": ["source:battuta-rihla"],
+  "themes": ["scholars", "trade"]
+}
