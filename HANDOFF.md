@@ -64,6 +64,7 @@ reversible change; each ended with a live smoke test against
 | 9 | 3D Kaaba via polygon extrusion | `examples/feature.kaaba-volume.json` — atemporal Polygon with `render3d.extrude { height_m: 13.1 }`. New extrude branch in `app/js/layers.js` (PolygonLayer with `extruded: true`). +3 KB to the bundle. Zero asset weight; the cuboid renders correctly at the real GPS coords. Tawaf step camera tightened to z19/pitch 70/bearing 30 so the 3D-ness is obvious. |
 | 10 | PWA icons + missing media | Generated icon set from `docs/im_logo_small.png` via `sips` (192/512 regular + maskable, apple-touch 180, favicon 32/16, .ico). Authored 3 missing asset docs (`hijra-cover` + `umrah-cover` as inline-SVG-data-URI covers, zero S3 bytes; `talbiyah-audio` as a placeholder doc with `ext.status: "placeholder"`). **0 dangling refs left** (was 3); manifest validates, no more icon 404s. |
 | 11 | Push to public GitHub | Local repo had zero commits. Initial commit `ec13d63` → `origin/main` of `islamicmaps/im-monolithic` (public). Follow-up commit `9a82791` fixed cfn-lint failures (`arn:aws:` literals → `arn:${AWS::Partition}` in 5 templates), dropped an unused `AllowedRefs` parameter, added a pre-flight `AWS_ROLE_ARN` check to deploy.yml. **CI workflow is now green** at https://github.com/islamicmaps/im-monolithic/actions. |
+| 12 | Lighthouse audit + quick wins | Baseline mobile **81/100/100/100** (perf/a11y/bp/seo), desktop **99/100/100/100**. Quick wins applied: removed `user-scalable=no` (a11y), aria-labels on every interactive control (search input, basemap toggle, lang select, play, seek, speed, modal close), `meta description` + OpenGraph tags, `robots.txt` + `sitemap.xml`. New `scripts/audit.sh` for repeatable runs (`--mobile/--desktop/--both`, `--runs N --median` for noise reduction). Reports checked in at `docs/lighthouse/{mobile,desktop}.report.{json,html}`. |
 
 ### Live AWS state (all `us-east-1`)
 
@@ -490,9 +491,10 @@ Most of the 2026-06-08 list has been verified — see §0. What remains:
   workflow has only been exercised up to the OIDC pre-flight (which fails
   cleanly because `AWS_ROLE_ARN` isn't set yet). End-to-end push-to-main →
   auto-deploy hasn't fired once.
-- **Lighthouse / Core Web Vitals** — no formal performance audit. The live
-  site loads ~617 KB brotli of JS/CSS + the basemap is range-fetched, but no
-  numbers exist for LCP / TBT / CLS or PWA-installability score.
+- ~~**Lighthouse / Core Web Vitals**~~ — DONE 2026-06-09 (item 12 of §0).
+  Mobile **81/100/100/100**, desktop **99/100/100/100**, LCP 3.8 s, TBT 70 ms,
+  CLS 0.022 on Moto G Power-class hardware over simulated 4G. Re-run any time
+  with `./scripts/audit.sh`.
 - **Search quality at scale** — corpus is 2 stories. Hybrid RRF tuning, kNN
   ranking sanity, and search-relevance evaluation will need real content to
   judge.
@@ -632,10 +634,15 @@ python3 serverless/tests/test_search.py         # 34 assertions
 ./scripts/deploy.sh --skip-build --skip-reindex # tweak-and-republish loop
 ./scripts/deploy.sh --rebuild-vendor            # rerun esbuild on the vendor bundles
 
-# 5) Rebuild the vendor bundles (one-time, after npm version bumps)
+# 5) Lighthouse audit (mobile by default; reports written to docs/lighthouse/)
+./scripts/audit.sh                              # one mobile run (~60s)
+./scripts/audit.sh --both                       # mobile + desktop
+./scripts/audit.sh --runs 5 --median            # 5 mobile runs, take median (noise reduction)
+
+# 6) Rebuild the vendor bundles (one-time, after npm version bumps)
 ( cd .vendor-build && npm install && BUILT_AT=$(date -u +%FT%TZ) node build.mjs )
 
-# 6) Build / refresh the Protomaps PMTiles basemap (out-of-band, ~2 min)
+# 7) Build / refresh the Protomaps PMTiles basemap (out-of-band, ~2 min)
 brew install pmtiles                            # one-time
 mkdir -p ~/.cache/imaps
 pmtiles extract https://build.protomaps.com/$(date -u -v-3d +%Y%m%d).pmtiles \
@@ -643,7 +650,7 @@ pmtiles extract https://build.protomaps.com/$(date -u -v-3d +%Y%m%d).pmtiles \
   --bbox 36,18,44,28 --maxzoom 14
 # pipeline/basemap.py picks it up on the next pipeline.build
 
-# 7) Deploy / update IaC stacks (rare — most edits go via scripts/deploy.sh)
+# 8) Deploy / update IaC stacks (rare — most edits go via scripts/deploy.sh)
 aws cloudformation deploy --region us-east-1 --stack-name islamicmaps-app          --template-file infra/site.yaml          --tags project=islamicmaps environment=mvp
 aws cloudformation deploy --region us-east-1 --stack-name islamicmaps-observability --template-file infra/observability.yaml --tags project=islamicmaps environment=mvp
 aws cloudformation deploy --region us-east-1 --stack-name islamicmaps-cicd          --template-file infra/cicd.yaml          --capabilities CAPABILITY_NAMED_IAM
@@ -651,12 +658,12 @@ aws cloudformation deploy --region us-east-1 --stack-name islamicmaps-cicd      
   sam deploy --stack-name islamicmaps-search --region us-east-1 --resolve-s3 \
              --capabilities CAPABILITY_IAM --no-confirm-changeset )
 
-# 8) Subscribe to the alarm topic (one-time)
+# 9) Subscribe to the alarm topic (one-time)
 aws sns subscribe --region us-east-1 \
   --topic-arn arn:aws:sns:us-east-1:803129122420:islamicmaps-observability-alarms \
   --protocol email --notification-endpoint you@example.com
 
-# 9) Re-render the architecture diagram (optional)
+# 10) Re-render the architecture diagram (optional)
 dot -Tpng docs/architecture.dot -o docs/architecture.png
 ```
 

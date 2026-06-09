@@ -149,6 +149,9 @@ override "icons/icon-192.png"                     "image/png"     "public, max-a
 override "icons/icon-512.png"                     "image/png"     "public, max-age=86400"
 override "icons/icon-192-maskable.png"            "image/png"     "public, max-age=86400"
 override "icons/icon-512-maskable.png"            "image/png"     "public, max-age=86400"
+# SEO discovery files
+override "robots.txt"                             "text/plain; charset=utf-8"  "public, max-age=86400"
+override "sitemap.xml"                            "application/xml; charset=utf-8"  "public, max-age=86400"
 
 # ------------------------------------------------------------------ 3) re-index search
 if [[ $SKIP_REINDEX -eq 0 ]]; then

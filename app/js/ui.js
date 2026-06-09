@@ -6,9 +6,15 @@
 
 import { t, ui as uiStr, dir } from "./i18n.js";
 
-/** Small element factory. */
+/** Small element factory. Keys with `-` (e.g. `aria-label`, `data-*`) become
+ *  attributes; everything else is set as a DOM property (preserves the
+ *  existing onclick/onchange/value/textContent behavior). */
 function el(tag, props = {}, children = []) {
-  const node = Object.assign(document.createElement(tag), props);
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k.includes("-")) node.setAttribute(k, v);
+    else node[k] = v;
+  }
   for (const c of [].concat(children)) node.append(c);
   return node;
 }
@@ -25,15 +31,24 @@ export function mountUI(root, handlers) {
   let locale = "en";
 
   // --- Top bar ---
-  const basemapBtn = el("button", { className: "btn", onclick: () => {
-    const sat = basemapBtn.dataset.kind !== "satellite";
-    basemapBtn.dataset.kind = sat ? "satellite" : "vector";
-    basemapBtn.textContent = uiStr(sat ? "vector" : "satellite", locale);
-    handlers.onBasemap(sat ? "satellite" : "vector");
-  } });
+  const basemapBtn = el("button", {
+    className: "btn",
+    "aria-label": "Toggle basemap",
+    onclick: () => {
+      const sat = basemapBtn.dataset.kind !== "satellite";
+      basemapBtn.dataset.kind = sat ? "satellite" : "vector";
+      basemapBtn.textContent = uiStr(sat ? "vector" : "satellite", locale);
+      handlers.onBasemap(sat ? "satellite" : "vector");
+    },
+  });
   basemapBtn.dataset.kind = "vector";
 
-  const langSel = el("select", { className: "lang", onchange: (e) => handlers.onLocale(e.target.value) });
+  const langSel = el("select", {
+    className: "lang",
+    "aria-label": "Language",
+    title: "Language",
+    onchange: (e) => handlers.onLocale(e.target.value),
+  });
 
   const topbar = el("div", { id: "topbar" }, [
     el("div", { className: "brand", textContent: "islamicmaps.org" }),
@@ -47,6 +62,7 @@ export function mountUI(root, handlers) {
     id: "search",
     type: "search",
     autocomplete: "off",
+    "aria-label": "Search stories, places, events",
     oninput: (e) => handlers.onSearch(e.target.value),
   });
   const themes = el("div", { id: "themes" });
@@ -60,11 +76,30 @@ export function mountUI(root, handlers) {
   const storyPanel = el("div", { id: "story-panel", hidden: true }, [storyTitle, storyDesc, sourcesBtn]);
 
   // --- Playback bar ---
-  const playBtn = el("button", { id: "playpause", className: "btn", onclick: () => handlers.onTogglePlay() });
-  const seek = el("input", { id: "seek", type: "range", min: "0", max: "1000", value: "0",
-    oninput: (e) => handlers.onSeek(Number(e.target.value) / 1000) });
+  const playBtn = el("button", {
+    id: "playpause",
+    className: "btn",
+    "aria-label": "Play / pause story",
+    onclick: () => handlers.onTogglePlay(),
+  });
+  const seek = el("input", {
+    id: "seek",
+    type: "range",
+    min: "0",
+    max: "1000",
+    value: "0",
+    "aria-label": "Story progress",
+    oninput: (e) => handlers.onSeek(Number(e.target.value) / 1000),
+  });
   const speedWrap = el("div", { className: "speeds" },
-    [1, 2, 5].map((s) => el("button", { className: "btn speed", textContent: `${s}×`, onclick: () => handlers.onSpeed(s) })));
+    [1, 2, 5].map((s) =>
+      el("button", {
+        className: "btn speed",
+        textContent: `${s}×`,
+        "aria-label": `Playback speed ${s} times`,
+        onclick: () => handlers.onSpeed(s),
+      })
+    ));
   const timeLabel = el("span", { className: "time" });
   const narration = el("div", { id: "narration" });
   const playbar = el("div", { id: "playbar", hidden: true }, [
@@ -74,9 +109,14 @@ export function mountUI(root, handlers) {
 
   // --- Sources modal ---
   const modalBody = el("div", { className: "modal-body" });
-  const modal = el("div", { id: "modal", hidden: true }, [
+  const modal = el("div", { id: "modal", role: "dialog", "aria-modal": "true", "aria-label": "Sources", hidden: true }, [
     el("div", { className: "modal-card" }, [
-      el("button", { className: "btn close", textContent: "✕", onclick: () => (modal.hidden = true) }),
+      el("button", {
+        className: "btn close",
+        textContent: "✕",
+        "aria-label": "Close sources",
+        onclick: () => (modal.hidden = true),
+      }),
       modalBody,
     ]),
   ]);

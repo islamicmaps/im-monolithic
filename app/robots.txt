@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Don't crawl the in-flight build artifacts under /dist/ — they're bytes-on-the-wire,
+# not human-readable pages. The catalog at /dist/catalog.json IS the public index,
+# but all of /dist/ is reachable for the live app and for direct API consumers.
+# (Comment kept so future tweaks have rationale.)
+
+Sitemap: https://app.islamicmaps.org/sitemap.xml
